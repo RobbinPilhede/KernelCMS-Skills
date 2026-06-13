@@ -1,0 +1,768 @@
+{
+  "generatedFrom": "skills/**/SKILL.md",
+  "count": 48,
+  "categories": [
+    "Agent workflows",
+    "Content modeling",
+    "Page design",
+    "Quality"
+  ],
+  "skills": [
+    {
+      "name": "bulk-draft-content",
+      "title": "Bulk-draft content",
+      "description": "Drive an agent to generate many drafts (e.g. 20 blog posts) safely in KernelCMS — each a draft, scoped, deduped, and queued for human review before publish.",
+      "category": "Agent workflows",
+      "tags": [
+        "bulk",
+        "drafts",
+        "batch",
+        "blog",
+        "review"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/bulk-draft-content/SKILL.md",
+      "prompt": "You are bulk-drafting content in KernelCMS through the access-controlled MCP tools. Everything you create is a **draft** — you cannot publish, and you can only write fields inside your `fieldScope`.\n\n**1. Learn the model.** Read `kernel://schema` (or `kernel://collections/<slug>`) for the target collection. Note its required fields, the slug/title fields, and exactly which fields are in your scope. Write only those.\n\n**2. Check for duplicates first.** Before creating anything, call `<collection>_list` (or `<collection>_count` with a `where` filter) to see what already exists. Skip topics that are already covered; don't recreate a post whose slug or title already exists.\n\n**3. Draft one at a time, idempotently.** For each item in the batch, call `<collection>_create` with a complete, valid payload — a unique slug, a real title, body copy that stands on its own. Vary structure and angle across the batch; don't template-fill the same three paragraphs with synonyms. If a create fails validation, fix that item and continue — don't abort the whole batch.\n\n**4. Pace and report.** Keep a running list of what you created (id, title, slug) and what you skipped (and why). Do **not** retry a successful create. When the batch is done, output the full manifest and tell the human exactly how to review: filter the collection to `createdByType: agent` drafts, read them in the admin preview, and publish the keepers.\n\nBatch spec: «collection, the list of topics/items, target count, voice, any must-cover angles»."
+    },
+    {
+      "name": "compose-page-from-brief",
+      "title": "Compose a page from a brief",
+      "description": "Drive an agent to read `kernel://schema`, discover your block library, and compose a page's blocks field from a plain-language brief — as a draft.",
+      "category": "Agent workflows",
+      "tags": [
+        "blocks",
+        "page-builder",
+        "compose",
+        "schema",
+        "draft"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/compose-page-from-brief/SKILL.md",
+      "prompt": "You are composing a page in KernelCMS through the access-controlled MCP tools. You write **drafts** only — you cannot publish, and you can only write fields inside your `fieldScope`.\n\n**1. Learn the model.** Read the `kernel://schema` resource (or `kernel://collections/<slug>`) to find the target collection and its page-builder field — a `blocks`-type field holding an array of `{ blockType, …fields }`. Enumerate the **exact block types available and each one's fields**. Never invent a block type or field name; use only what the schema exposes. If the brief wants something with no matching block, pick the closest one and note the gap rather than fabricating.\n\n**2. Plan the arc.** Turn the brief into an ordered narrative, not a pile of sections — hero → proof → value → how-it-works → FAQ → closing CTA, cutting anything that doesn't move the reader forward. Match the brand voice if given.\n\n**3. Write the field.** Build the `blocks` array in order, each entry a real `blockType` with its fields filled and valid. Set it in a single `<collection>_update` (or `<collection>_create`) call. If a field you'd want isn't in your scope, leave it and say so.\n\n**4. Confirm.** The page is a draft regardless of what you set — you can't publish it. When done, summarize the section order, the single most important line on the page, and any block types or fields you wanted but couldn't use. Tell the human it's ready to review and publish.\n\nBrief: «product, audience, the one action you want, brand voice, any must-include proof»."
+    },
+    {
+      "name": "connect-an-agent",
+      "title": "Connect an agent",
+      "description": "Define a scoped agent in your KernelCMS config, serve it over MCP with `npx kernel mcp`, and wire Claude Desktop or Cursor to it.",
+      "category": "Agent workflows",
+      "tags": [
+        "mcp",
+        "setup",
+        "claude-desktop",
+        "cursor",
+        "stdio"
+      ],
+      "difficulty": "starter",
+      "path": "skills/agent-workflows/connect-an-agent/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Define the agent in `kernel.config.ts`\n\nAdd an `agents` array. Each agent needs a unique `id` and a `token` (a bearer credential — **source it from the environment, never hardcode**). Give it the narrowest `roles` and `fieldScope` it needs.\n\n```ts\nimport { defineConfig } from 'kernelcms'\n\nexport default defineConfig({\n  agents: [\n    {\n      id: 'content-bot',\n      token: process.env.CONTENT_BOT_TOKEN!, // from env — never a literal\n      roles: ['editor'],                     // never 'admin' (rejected at startup)\n      fieldScope: { allow: ['title', 'body', 'excerpt'] }, // deny-by-default\n    },\n  ],\n  // …collections, globals, etc.\n})\n```\n\n`roles` flow through the *same* access rules a human gets. `fieldScope.allow` is deny-by-default: only those top-level fields can be written; everything else is stripped from every write. The `admin` role is rejected when the config loads — granting it would widen role-gated rules for a non-human caller.\n\nPut the token in your environment, e.g. `.env`:\n\n```bash\nCONTENT_BOT_TOKEN=$(openssl rand -hex 32)\n```\n\n### 2. Serve over stdio\n\n```bash\nnpx kernel mcp --agent content-bot\n```\n\nWith exactly one configured agent, `--agent` is optional; with several it is required. The server speaks MCP JSON-RPC over stdin/stdout — diagnostics go to stderr, so stdout stays pure protocol.\n\n### 3. Wire Claude Desktop\n\nEdit `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`; Windows: `%APPDATA%\\Claude\\`). The client spawns the process, so give it the working directory and the token via `env`:\n\n```json\n{\n  \"mcpServers\": {\n    \"kernelcms\": {\n      \"command\": \"npx\",\n      \"args\": [\"kernel\", \"mcp\", \"--agent\", \"content-bot\"],\n      \"env\": { \"CONTENT_BOT_TOKEN\": \"paste-the-token-here\" }\n    }\n  }\n}\n```\n\nRestart Claude Desktop. You'll see the `kernelcms` tools (`posts_list`, `posts_create`, …) and the `kernel://schema` resource.\n\n### 4. Wire Cursor\n\nCursor reads `.cursor/mcp.json` in your project (or the global one in `~/.cursor/`). Same shape:\n\n```json\n{\n  \"mcpServers\": {\n    \"kernelcms\": {\n      \"command\": \"npx\",\n      \"args\": [\"kernel\", \"mcp\", \"--agent\", \"content-bot\"],\n      \"env\": { \"CONTENT_BOT_TOKEN\": \"paste-the-token-here\" }\n    }\n  }\n}\n```\n\n### 5. Verify\n\nIn the client, ask: *\"List the available KernelCMS tools, then read `kernel://schema` and tell me which collections exist.\"* If it can list tools and read the schema, you're connected."
+    },
+    {
+      "name": "fill-missing-fields",
+      "title": "Fill missing fields",
+      "description": "Drive an agent to find KernelCMS documents with empty fields and draft completions within its scope — excerpts, SEO copy, alt text — for human review.",
+      "category": "Agent workflows",
+      "tags": [
+        "completion",
+        "backfill",
+        "seo",
+        "quality",
+        "drafts"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/fill-missing-fields/SKILL.md",
+      "prompt": "You are backfilling missing fields in KernelCMS through the access-controlled MCP tools. You write **drafts** only, and only fields inside your `fieldScope`. You complete what's empty — you don't rewrite what's already there unless asked.\n\n**1. Learn the model.** Read `kernel://schema` for the target collection. Identify the field(s) to backfill and confirm they're in your scope. Note the source fields you'll derive from (e.g. `body` → `excerpt`).\n\n**2. Find the gaps.** Call `<collection>_list` with a `where` filter for documents where the target field is empty/null (and `<collection>_count` to size the job). Page through results; don't assume the first page is all of them.\n\n**3. Derive, don't fabricate.** For each document, read its existing content (`<collection>_get`) and generate the missing field *from that content* — an excerpt that summarizes the real body, alt text that describes the actual image's subject, a meta description grounded in the page. Never invent facts the document doesn't contain. Respect length/format constraints (e.g. ~155 chars for a meta description).\n\n**4. Write only the gap.** Call `<collection>_update` setting only the previously-empty field. Leave every other field as-is. The document stays a draft.\n\n**5. Report.** List documents filled (id + the value you wrote), documents skipped (already had a value, or no source content to derive from), and any you couldn't complete confidently. Tell the human to review the `createdByType: agent` drafts and publish.\n\nJob: «collection, the field to fill, the source field(s) to derive from, any length/format rules»."
+    },
+    {
+      "name": "generate-a-content-calendar",
+      "title": "Generate a content calendar",
+      "description": "Drive an agent to plan a content calendar and draft each entry in KernelCMS — scheduled by a human at publish time, never by the agent.",
+      "category": "Agent workflows",
+      "tags": [
+        "calendar",
+        "planning",
+        "drafts",
+        "editorial",
+        "scheduling"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/generate-a-content-calendar/SKILL.md",
+      "prompt": "You are planning a content calendar in KernelCMS through the access-controlled MCP tools. You create **drafts** only — you cannot publish or schedule a publish, and you can only write fields inside your `fieldScope`.\n\n**1. Learn the model.** Read `kernel://schema` for the target collection. Note the title/slug fields, the body field, and any field you might use to record the *intended* date (e.g. a plain `planned_for` date field) — **only if it's in your scope**. There is no agent-settable publish schedule; record intended dates as ordinary draft data for a human to act on.\n\n**2. Check what exists.** Call `<collection>_list` / `_count` to see what's already planned or published, so the calendar fills gaps instead of duplicating.\n\n**3. Plan the calendar.** Lay out the slots: for each, give a date/cadence slot, a theme, a working title, the angle, and the target audience. Balance the mix (don't stack five how-tos in a row); align to any campaigns or seasonality in the brief. Present the plan as a table first.\n\n**4. Draft each slot.** For each entry, call `<collection>_create` with a real title, slug, a short outline or full draft body per the brief, and the intended date in a scoped date field if one exists. Keep a manifest of id → slot.\n\n**5. Report the schedule plan.** Output the calendar table mapped to draft ids, and tell the human: review the drafts (filter to `createdByType: agent`), then **schedule the publishes** in the admin on the intended dates — that step is theirs.\n\nCalendar spec: «collection, date range + cadence, themes/campaigns, audience, voice»."
+    },
+    {
+      "name": "migrate-content-from-another-cms",
+      "title": "Migrate content from another CMS",
+      "description": "Drive an agent to map and import content from Contentful, Sanity, or WordPress into KernelCMS collections as reviewable drafts.",
+      "category": "Agent workflows",
+      "tags": [
+        "migration",
+        "contentful",
+        "sanity",
+        "wordpress",
+        "import",
+        "drafts"
+      ],
+      "difficulty": "advanced",
+      "path": "skills/agent-workflows/migrate-content-from-another-cms/SKILL.md",
+      "prompt": "You are migrating content into KernelCMS from another CMS, through the access-controlled MCP tools. Everything you create is a **draft** — review happens before any cutover. You can only write fields inside your `fieldScope`.\n\n**1. Learn the target model.** Read `kernel://schema` and the relevant `kernel://collections/<slug>` descriptors. For each target collection, list its fields, types, required fields, and which are in your scope.\n\n**2. Build an explicit field map — and show it before importing.** For each source content type, produce a table: `source field → target field`, with the transform (rename, type coercion, rich-text → the target's body format, asset reference handling, relationship resolution). Flag every source field that has **no** target home and every required target field with **no** source — do not guess. Get the human's sign-off on the map before creating anything.\n\n**3. Import in dependency order.** Create referenced collections first (authors, categories, media records) so relationships can resolve, then the documents that point at them. For each row, call `<collection>_create` with the mapped, validated payload. Preserve the source slug where possible so URLs survive. Keep a source-id → new-id table to wire relationships.\n\n**4. Handle the messy cases explicitly.** Rich text: convert to the target field's format, don't paste raw HTML into a plain-text field. Assets: create the media record / set the reference per the target schema; if you can't fetch a binary, record the source URL and flag it. Dates and enums: coerce to the target types or flag mismatches.\n\n**5. Report.** Output: rows created per collection (with ids), rows skipped/flagged (and why), and the unresolved-mapping list. Tell the human to review the drafts (filter to `createdByType: agent`), spot-check relationships and assets, then publish in the admin. Migration completes when a human publishes — not when you finish creating.\n\nSource: «which CMS, the export format/location, and the content types to migrate»."
+    },
+    {
+      "name": "review-agent-drafts",
+      "title": "Review agent drafts",
+      "description": "Review what an agent created in KernelCMS using `*_versions` filtered to `createdByType: agent` plus the live preview, then publish the keepers as a human.",
+      "category": "Agent workflows",
+      "tags": [
+        "review",
+        "versions",
+        "audit",
+        "publish",
+        "governance"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/review-agent-drafts/SKILL.md",
+      "prompt": "You are auditing agent-authored drafts in KernelCMS so a human can decide what to publish. You are **read-only** for this task: gather, summarize, and recommend — do not publish (you can't anyway), and flag anything you'd reject.\n\n**1. Find the agent's work.** For each candidate document, call `<collection>_versions` with `createdByType: 'agent'` to list only the snapshots an agent authored. Use `<collection>_list` with a `where` filter on draft status to enumerate the batch first if you don't have ids.\n\n**2. Read each draft.** Call `<collection>_get` (it reads the latest draft) to see the current content. Compare against the version history if you need to see what the agent changed and when.\n\n**3. Judge it.** For each draft, check: required fields present and sensible; copy is accurate and on-voice; no hallucinated facts, broken links, or placeholder text; nothing outside the brief. Note any field the agent *couldn't* set (outside its scope) that a human still needs to fill — e.g. `author`, `seo`, a hero image.\n\n**4. Report a publish plan.** Output a table: id, title, verdict (publish / fix / reject), and the one thing each needs. Tell the human which to open in the admin live preview, and which fields they must complete before publishing. Make clear the publish action is theirs.\n\nScope: «collection, and the batch (by date, by ids, or \"everything the agent drafted\")».\n\n### The human publish step (not an agent action)\n\nAfter review, the human opens each keeper in the admin, completes any out-of-scope fields (author, SEO, media), checks it in **live preview**, and publishes from there. Publishing is gated by the collection's `access.publish` rule and is unavailable to agent principals — so this transition is always a deliberate human decision."
+    },
+    {
+      "name": "scope-an-agent-safely",
+      "title": "Scope an agent safely",
+      "description": "Choose a least-privilege `fieldScope.allow` and roles for a KernelCMS agent, and understand why draft-only + field-scope make it safe.",
+      "category": "Agent workflows",
+      "tags": [
+        "security",
+        "fieldscope",
+        "least-privilege",
+        "roles",
+        "drafts"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/scope-an-agent-safely/SKILL.md",
+      "prompt": "This skill is operational — apply the checklist when authoring an agent.\n\n### Pick the role first\n\n`roles` decide which collection-level access rules apply to the agent — the *exact same* rules a human in that role gets. Choose the narrowest role that grants read/create/update on the collections the agent works in.\n\n- Never grant `admin` — it's rejected at startup, because it would widen every role-gated rule for a non-human caller.\n- Prefer a purpose-built role (e.g. `content-bot`, `translator`) over a broad `editor` if your access rules can key off it.\n- The role gates *which collections and rows*; it does **not** loosen field scope.\n\n### Pick the field scope — deny-by-default\n\n`fieldScope.allow` is a deny-by-default allow-list of **top-level** field names. Only those may be written; every other field is stripped from every create/update *before* per-field rules even run. Start from the question: *\"What is the smallest set of fields this agent must write to do its job?\"*\n\n```ts\n// A drafting bot: writes copy, nothing structural.\n{ id: 'content-bot', token: process.env.CONTENT_BOT_TOKEN!,\n  roles: ['editor'],\n  fieldScope: { allow: ['title', 'slug', 'excerpt', 'body'] } }\n\n// A page composer: also writes the page-builder field.\n{ id: 'page-bot', token: process.env.PAGE_BOT_TOKEN!,\n  roles: ['editor'],\n  fieldScope: { allow: ['title', 'slug', 'layout'] } }\n```\n\nRules of thumb:\n\n- **Leave authority and lifecycle fields out.** Never put `roles`, `permissions`, `author`, `is_admin`, or anything that confers identity/ownership in `allow`. An agent scoped to `['title']` simply cannot set `roles` — even if no field rule mentions it.\n- **`allow` over `deny`.** `deny` is the inverse (block these, allow the rest) — easy to under-specify when you add a sensitive field later. `allow` fails safe: a new field is denied until you opt it in.\n- **A permitted group/array passes its subfields through.** Allowing `layout` lets the agent fill every block's fields inside it. Scope at the granularity you actually want.\n- **One agent per job.** Don't widen one agent's scope to cover a second task — define a second agent with its own token and scope.\n\n### What the guardrails give you for free\n\nTwo brakes live in `@kernel/core`, not the MCP adapter, so they hold no matter how the agent connects:\n\n1. **Draft-only.** A born-published `create`, a `_status: published` write, a `publish()`, or a scheduled publish are all rejected for an agent principal. Publishing stays a human decision. So the *worst case* of an over-scoped agent is a bad draft a human reviews — never live content.\n2. **Field scope, engine-enforced.** Stripping happens before per-field access rules, so an unscoped field can't be smuggled in via the MCP client (the tool schemas also use `additionalProperties: false`).\n\nField scope is what bounds the *blast radius* of a draft; draft-only is what keeps any mistake off the live site. Together they mean a compromised or confused agent can, at worst, produce reviewable drafts within a few named fields.\n\n### Validate the scope\n\nIn a connected client, ask the agent to read `kernel://schema`, then try to set a field outside its scope (e.g. `roles`). Confirm the value doesn't land — it's silently stripped. Then confirm a normal draft write within scope succeeds."
+    },
+    {
+      "name": "set-up-an-mcp-project-from-scratch",
+      "title": "Set up an MCP project from scratch",
+      "description": "End-to-end runbook — init KernelCMS, define a model, add a scoped agent, connect Claude Desktop or Cursor over MCP, and compose the first page.",
+      "category": "Agent workflows",
+      "tags": [
+        "setup",
+        "runbook",
+        "mcp",
+        "quickstart",
+        "end-to-end"
+      ],
+      "difficulty": "starter",
+      "path": "skills/agent-workflows/set-up-an-mcp-project-from-scratch/SKILL.md",
+      "prompt": "### 1. Scaffold\n\n```bash\nmkdir my-cms && cd my-cms\nnpx kernel init            # writes kernel.config.ts (SQLite + a users + posts collection)\nnpm install kernelcms\n```\n\n`kernel init` gives you a zero-config starter: local SQLite, an auth `users` collection, and a public `posts` collection.\n\n### 2. Model your content\n\nEdit `kernel.config.ts`. Add the fields and a page-builder collection you want the agent to compose. A minimal `pages` collection with a `blocks` field:\n\n```ts\nimport { defineConfig } from 'kernelcms'\nimport { sqliteAdapter } from 'kernelcms/sqlite'\n\nexport default defineConfig({\n  secret: process.env.KERNEL_SECRET ?? 'dev-only-secret',\n  db: sqliteAdapter({ url: 'file:./content.db' }),\n  collections: [\n    { slug: 'users', auth: true, fields: [{ name: 'name', type: 'text' }] },\n    {\n      slug: 'pages',\n      access: { read: () => true },\n      versions: { enabled: true, drafts: true }, // drafts + version history\n      fields: [\n        { name: 'title', type: 'text', required: true },\n        { name: 'slug', type: 'text' },\n        {\n          name: 'layout',\n          type: 'blocks',\n          blocks: [\n            { slug: 'hero', fields: [\n              { name: 'heading', type: 'text' }, { name: 'sub', type: 'text' } ] },\n            { slug: 'feature_grid', fields: [\n              { name: 'columns', type: 'number' },\n              { name: 'items', type: 'array', fields: [\n                { name: 'title', type: 'text' }, { name: 'body', type: 'text' } ] } ] },\n            { slug: 'cta', fields: [\n              { name: 'label', type: 'text' }, { name: 'href', type: 'text' } ] },\n          ],\n        },\n      ],\n    },\n  ],\n})\n```\n\nRun it and confirm it boots:\n\n```bash\nnpx kernel dev            # migrates, then serves the REST API + admin\n```\n\nCreate an admin user in the admin UI (you'll publish from here later). Stop the server when you've confirmed it runs.\n\n### 3. Add a scoped agent\n\nAppend an `agents` array. Least privilege: only the fields the agent needs, never the `admin` role, token from env.\n\n```ts\n  agents: [\n    {\n      id: 'page-bot',\n      token: process.env.PAGE_BOT_TOKEN!,        // from env — never a literal\n      roles: ['editor'],                         // never 'admin' (rejected at startup)\n      fieldScope: { allow: ['title', 'slug', 'layout'] }, // deny-by-default\n    },\n  ],\n```\n\nGenerate a token into `.env` (gitignored):\n\n```bash\necho \"PAGE_BOT_TOKEN=$(openssl rand -hex 32)\" >> .env\n```\n\n### 4. Serve over MCP and connect a client\n\n```bash\nnpx kernel mcp --agent page-bot     # stdio; --agent optional if there's only one\n```\n\nRegister it in the client. **Claude Desktop** (`claude_desktop_config.json`) or **Cursor** (`.cursor/mcp.json`) — same shape:\n\n```json\n{\n  \"mcpServers\": {\n    \"kernelcms\": {\n      \"command\": \"npx\",\n      \"args\": [\"kernel\", \"mcp\", \"--agent\", \"page-bot\"],\n      \"env\": { \"PAGE_BOT_TOKEN\": \"paste-the-token-here\" }\n    }\n  }\n}\n```\n\nRestart the client. You should see the `kernelcms` tools (`pages_list`, `pages_create`, …) and the `kernel://schema` resource.\n\n### 5. Compose the first page (run this prompt in the client)\n\nRead the `kernel://schema` resource and find the `pages` collection and its `layout` blocks field — list the available block types and their fields. Then compose a first page from this brief: «your brief». Build the `layout` array as an ordered narrative using only real block types, fill each block's fields, and create it with `pages_create` (title + slug + layout). It will be a draft — you can't publish. When done, summarize the section order and tell me it's ready to review.\n\n### 6. Publish (human)\n\nOpen the new page in the admin, check it in live preview, fill any field outside the agent's scope, and publish. Done — your first agent-composed page is live, on your decision."
+    },
+    {
+      "name": "translate-content",
+      "title": "Translate content",
+      "description": "Use an agent to draft translations of localized fields per locale in KernelCMS, written through the `locale` arg and held as human-reviewed drafts.",
+      "category": "Agent workflows",
+      "tags": [
+        "localization",
+        "i18n",
+        "translation",
+        "locales",
+        "drafts"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/translate-content/SKILL.md",
+      "prompt": "You are drafting translations in KernelCMS through the access-controlled MCP tools. You write **drafts** only — you cannot publish — and you may only write fields inside your `fieldScope`. You translate into the target locale; you never alter the source locale's values.\n\n**1. Learn the model and locales.** Read `kernel://schema` to find the target collection, which of its fields are **localized**, and the configured locales. Translate only localized fields that are in your scope; leave non-localized fields (slugs, references, numbers) untouched.\n\n**2. Read the source locale.** Call `<collection>_get` with `locale: '<source>'` to get the authoritative source content.\n\n**3. Translate faithfully.** Render each localized field in the target language: preserve meaning, tone, and any product/brand terms (keep a glossary of do-not-translate terms from the brief). Adapt idioms rather than translating word-for-word; respect the target language's conventions (formality, punctuation, units). Do not invent content the source doesn't have.\n\n**4. Write the target locale.** Call `<collection>_update` with `locale: '<target>'` and only the translated localized fields. This sets the target-locale values without disturbing the source locale or non-localized fields. The document stays a draft.\n\n**5. Report.** Per document and per locale: which fields you translated, any term you were unsure about, and anything you deliberately left in the source language. Tell the human to review each locale in the admin (live preview per locale) and publish.\n\nJob: «collection + documents, source locale, target locale(s), any glossary / do-not-translate terms»."
+    },
+    {
+      "name": "add-seo-fields",
+      "title": "Add SEO fields",
+      "description": "Add an SEO group or the first-party SEO plugin to a KernelCMS collection — meta title, description, and OG image — with length limits and auto-fill.",
+      "category": "Content modeling",
+      "tags": [
+        "seo",
+        "plugin",
+        "metadata",
+        "open-graph",
+        "group"
+      ],
+      "difficulty": "starter",
+      "path": "skills/content-modeling/add-seo-fields/SKILL.md",
+      "prompt": "You are adding SEO fields to a KernelCMS collection as config-as-code. There are two correct approaches — choose based on the brief and say which:\n\n**A. The first-party plugin (preferred for the common case).** `@kernel/plugin-seo` is an ordinary config-transformer plugin — no privileged access. It adds `meta_title` (text, `maxLength: 70`) and `meta_description` (textarea, `maxLength: 160` by default) under an \"SEO\" admin tab on the listed collections, and a `beforeChange` hook that **auto-fills** each from a source field when left blank:\n```ts\nimport { seoPlugin } from '@kernel/plugin-seo'\n// …\nplugins: [\n  seoPlugin({\n    collections: ['posts', 'pages'],\n    generateTitleFrom: 'title',        // seeds meta_title when blank\n    generateDescriptionFrom: 'excerpt', // seeds meta_description when blank\n    descriptionMaxLength: 160,\n  }),\n]\n```\nUse this when you want consistent SEO across several collections with auto-generation and minimal config. It won't double-add fields you already declared.\n\n**B. An inline `group` (or `tab`)** when you need fields the plugin doesn't ship — an OG image, a canonical URL, a `noindex` toggle, per-locale meta. Model it explicitly:\n```ts\n{ name: 'seo', type: 'group', admin: { description: 'Search & social metadata' }, fields: [\n  { name: 'title', type: 'text', maxLength: 70,\n    admin: { description: 'Search/social title (≤70 chars).' } },\n  { name: 'description', type: 'textarea', maxLength: 160,\n    admin: { description: 'Shown under the title in results (~160).' } },\n  { name: 'og_image', type: 'upload', relationTo: 'media',\n    admin: { description: 'Open Graph / social card image (1200×630).' } },\n  { name: 'canonical_url', type: 'text' },\n  { name: 'no_index', type: 'boolean', defaultValue: false },\n] }\n```\nA `group` namespaces the data (`seo.title`, `seo.og_image`) and renders as one section — use `admin.tab: 'SEO'` on each field instead if you'd rather they live in a dedicated editor tab alongside the plugin's.\n\n**Length limits matter.** `meta_title` ≤ ~70 chars, `meta_description` ≤ ~160 — search engines truncate beyond that. Enforce with `maxLength`.\n\n**Localization.** If the site is multi-locale, mark the SEO text fields `localized: true` so each language gets its own meta. (Requires `config.localization`.)\n\n**Don't:** put SEO behind field-level access that hides it from editors, or auto-fill from a richText field (it's structured, not a string — the plugin only seeds from string sources). Output the edit and say which approach and why."
+    },
+    {
+      "name": "design-a-block-library",
+      "title": "Design a block library",
+      "description": "Design a reusable KernelCMS blocks page-builder set — hero, feature_grid, cta — so agents and editors compose on-brand pages from typed sections.",
+      "category": "Content modeling",
+      "tags": [
+        "blocks",
+        "page-builder",
+        "design-system",
+        "sections",
+        "marketing"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/design-a-block-library/SKILL.md",
+      "prompt": "You are designing a reusable block library for a KernelCMS `blocks` page-builder field. Output a `blocks` field definition (the `BlockDef[]`) using only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, `point`. Each block is `{ slug, labels?, admin?: { group, description, thumbnail }, fields: [...] }`. Blocks are stored as `{ blockType, ...fields }`.\n\n**Design principles — this is a design system, not a dumping ground:**\n1. **Tight set.** Ship the 6–10 sections a brand actually uses. Each block you add is a thing an editor/agent can place, so restraint *is* the on-brand guarantee — only fields you define can be set.\n2. **One job per block.** A `hero` is one promise + one CTA. A `feature_grid` is N uniform feature cards. Don't build a god-block with 20 optional fields; build distinct, single-purpose blocks.\n3. **Constrain repetition.** Repeated items inside a block are an `array` with `minRows`/`maxRows` (a feature grid of 2–6, not unbounded). This is where layout quality is enforced.\n4. **Curate, don't free-form.** Prefer a `select` of variants (`align: left|center`, `theme: light|dark`, `width: contained|full`) over arbitrary inputs. Bound choices keep pages consistent.\n5. **Real links & media.** CTAs are `{ label, href }` (or a `relationship` to a `pages` collection for internal links). Images are `upload` → media. Never a bare URL where a typed link belongs.\n6. **Library affordances.** Give every block `admin.group` (so the section picker is organized) and a one-line `admin.description` (the library card copy). A `thumbnail` URL helps editors choose.\n\n**A strong default marketing set:** `hero`, `logo_strip`, `feature_grid`, `feature_split` (image + copy, alternating), `steps`, `testimonial`/`quote`, `stat_row`, `pricing`, `faq`, `cta`, `rich_text` (an escape hatch for prose). Adapt to the brief — drop what isn't needed.\n\nOutput the `blocks` field, then a short note on which blocks you included/excluded and why, and the variant `select`s you used to keep composition on-brand. Note how an agent composing pages discovers these via `kernel://schema` and can only use these exact types/fields."
+    },
+    {
+      "name": "localization-setup",
+      "title": "Localization setup",
+      "description": "Configure locales, per-field translations, and fallbacks in KernelCMS — which fields to localize and the strict required-per-locale footgun.",
+      "category": "Content modeling",
+      "tags": [
+        "localization",
+        "i18n",
+        "locales",
+        "translations",
+        "fallbacks"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/localization-setup/SKILL.md",
+      "prompt": "You are configuring localization for a KernelCMS model as config-as-code. Localization in KernelCMS is **per field**: a field marked `localized: true` stores one value *per locale*; unmarked fields are shared across all locales.\n\n**1. Declare the locale set** at the config root:\n```ts\nlocalization: {\n  locales: ['en', 'sv', 'de'],\n  defaultLocale: 'en',\n  fallback: true, // when a locale's value is missing, fall back to defaultLocale\n}\n```\n\n**2. Mark only the fields that actually differ by language `localized: true`:**\n- **Localize:** human-facing text — `title`, `excerpt`, `body` (richText), labels, SEO meta, alt text.\n- **Do NOT localize:** `slug` (usually — decide per project; a shared slug is simpler, a per-locale slug needs `localized: true` and care with `unique`), relationships/uploads (the *reference* is shared; the target's own localized fields translate), enums/`select` values, prices, dates, booleans, and anything structural.\n```ts\n{ name: 'title', type: 'text', required: true, localized: true },\n{ name: 'body',  type: 'richText', localized: true },\n{ name: 'category', type: 'relationship', relationTo: 'categories' }, // shared, not localized\n```\n\n**3. The fallback model.** With `fallback: true`, a read in `sv` that has no `sv` value returns the `defaultLocale` value — good for progressive translation (publish English, translate later). Per request you can override: set `fallbackLocale` to another locale or to `false` to see exactly which values are missing (useful for a translation-coverage audit).\n```ts\nawait kernel.find({ collection: 'posts', req: { locale: 'sv', fallbackLocale: 'en' } })\nawait kernel.find({ collection: 'posts', req: { locale: 'sv', fallbackLocale: false } }) // no fill → spot gaps\n```\nOver REST: `?locale=sv&fallback-locale=en`.\n\n**4. THE FOOTGUN — `required` + `localized`.** A field that is both `required: true` and `localized: true` is validated **per locale on write to that locale** — but fallback can *mask* missing translations on read, so content looks complete while a locale is actually empty. Two safe patterns:\n- **Required in the default locale, optional elsewhere + `fallback: true`** (the common, pragmatic choice): the default always has a value; other locales fall back until translated. Keep `required` only on fields the default locale must have.\n- **Strict required-per-locale:** if every locale *must* be fully translated before publishing (legal/regulatory copy), keep `required: true` and run a coverage check with `fallbackLocale: false` (or a publish hook) — do **not** rely on fallback to hide gaps. Decide and state which the project needs.\n\nOutput the config edits and a one-line note on which fields you localized, the fallback choice, and how you handled `required` per locale."
+    },
+    {
+      "name": "model-a-blog",
+      "title": "Model a blog",
+      "description": "Design a typed KernelCMS blog model — posts, authors, categories, tags, relationships, drafts, and SEO — as config-as-code in kernel.config.ts.",
+      "category": "Content modeling",
+      "tags": [
+        "blog",
+        "collections",
+        "relationships",
+        "drafts",
+        "seo"
+      ],
+      "difficulty": "starter",
+      "path": "skills/content-modeling/model-a-blog/SKILL.md",
+      "prompt": "You are a content architect modeling a blog in KernelCMS as config-as-code. Produce a `kernel.config.ts` using `defineConfig` and the real field set — never invent field types or options.\n\n**Use only these field types:** `text`, `textarea`, `email`, `slug`, `code`, `number`, `boolean`, `checkbox`, `date`, `select`, `radio`, `json`, `point`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`, plus the virtual `join` and the presentational `row`/`tabs`/`ui` containers. Relationship/upload fields take `relationTo` (a string, or a string[] for polymorphic), `hasMany`, and `onDelete: 'setNull' | 'cascade' | 'restrict'`.\n\n**Model the blog like this:**\n1. **`authors`** — `name` (text, required), `email` (email, unique), `bio` (textarea), `avatar` (upload → `media`). Add a reverse `join` named `posts` (`collection: 'posts'`, `on: 'author'`) so an author page can list their posts at `depth > 0`. Public reads.\n2. **`categories`** — `name` (text, required) + `slug` (slug, unique, required). A taxonomy, kept its own collection so it's reusable and renameable.\n3. **`posts`** — `title` (text, required), `slug` (slug, unique, required, index), `excerpt` (textarea, `maxLength: 280`), `body` (richText), `cover` (upload → `media`), `author` (relationship → `authors`, `onDelete: 'setNull'`), `categories` (relationship → `categories`, `hasMany`), `tags` (a fixed `select` with `hasMany: true` — tags are a closed vocabulary, not a collection, unless the brief needs tag pages). Add `published_at` (date) and an `seo` group.\n4. **`media`** — an `upload: true` collection for images.\n\n**Drafts & publishing.** Give `posts` `versions: { drafts: true }` — that adds the draft → published lifecycle, version history, and scheduled publish. Don't hand-roll a `status` select for this; the `_status` lifecycle is built in. (A plain `status` select is only for non-draft workflow states.)\n\n**SEO.** Either add an `seo` group inline (`meta_title` text, `meta_description` textarea, `og_image` upload → media) or prefer the first-party `seoPlugin({ collections: ['posts'], generateTitleFrom: 'title', generateDescriptionFrom: 'excerpt' })`, which ships the fields through the migration path and auto-fills them when left blank. Pick one; say which.\n\n**Access.** Reads are public (`access: { read: () => true }`). Writes require auth. Scope `posts.update`/`delete` to the author with a row-level `Where` if the brief is multi-author; gate going live with `access.publish` (e.g. editors edit, admins publish).\n\n**Admin polish.** Set `admin.useAsTitle`, `admin.defaultColumns`, and `admin.defaultSort: '-published_at'` on `posts`.\n\nOutput the full `kernel.config.ts`, then a short rationale for each modeling choice (why a collection vs. a select, why `onDelete: 'setNull'` on `author`, where SEO lives)."
+    },
+    {
+      "name": "model-a-docs-site",
+      "title": "Model a docs site",
+      "description": "Model a versioned documentation site in KernelCMS — docs with groups, ordering, code blocks, and version history — as typed config-as-code.",
+      "category": "Content modeling",
+      "tags": [
+        "docs",
+        "versioning",
+        "ordering",
+        "code",
+        "navigation"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-a-docs-site/SKILL.md",
+      "prompt": "You are modeling a documentation site in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `code`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, and the `join`/`row`/`tabs` containers.\n\n**Model a `docs` collection:**\n1. **Identity & nav:** `title` (text, required), `slug` (slug, unique, required, index), `nav_label` (text — the short sidebar label), `lead` (textarea — the one-line summary under the title).\n2. **Grouping & ordering:** `group` (a `select` of the fixed sidebar sections, e.g. \"Getting started\", \"Content modeling\"), and `order` (`number`, `integer: true`, `index: true`) for deterministic within-group sort. Set `admin.defaultSort: 'order'` so lists and the `join` come back ordered. A self-`relationship` `parent` (→ `docs`, `onDelete: 'setNull'`) supports nesting if the brief needs a tree.\n3. **Content:** `body` (richText, `preset: 'full'`). For doc-shaped content, richText carries headings, lists, and inline/code blocks. If pages are mostly long code samples, add a `code_examples` `array` of `{ language: select, code: code }` so each sample is typed and language-tagged rather than buried in prose.\n4. **Meta:** `updated_at` is automatic (`timestamps`). Add `is_deprecated` (boolean) and an optional `redirect_to` self-relationship for moved pages.\n\n**Versioning — this is the point.** Give `docs` `versions: true` for history-only (every save snapshots, restorable from the admin and `<slug>_versions`), or `versions: { drafts: true, maxPerDoc: 100 }` if you also want a draft → published edge so edits are staged before going live. Choose history-only when every save should be live but auditable; choose drafts when reviewers gate publishing. State which and why.\n\n**Doc versions (e.g. v1 vs v2 of the product).** That is product versioning, distinct from document history. Model it as a `version` `select`/relationship field (or a `doc_versions` collection that `docs` belong to) so the same slug exists per product version. Don't conflate it with `versions:` (which is revision history of one document).\n\n**Access.** Public reads; writes auth-only. Gate publishing with `access.publish` if drafts are on.\n\n**Admin.** `useAsTitle: 'title'`, `defaultColumns: ['title', 'group', 'order']`, `defaultSort: 'order'`, `admin.group` to bucket docs in the sidebar.\n\nOutput the config, then justify: the group+order ordering model, history-only vs. drafts, and how product-version differs from document-history."
+    },
+    {
+      "name": "model-a-knowledge-base",
+      "title": "Model a knowledge base",
+      "description": "Model a help center / knowledge base in KernelCMS — articles, categories, and full-text search — as typed config-as-code with the search adapter wired in.",
+      "category": "Content modeling",
+      "tags": [
+        "knowledge-base",
+        "help-center",
+        "search",
+        "articles",
+        "categories"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-a-knowledge-base/SKILL.md",
+      "prompt": "You are modeling a knowledge base in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, and the `join`. Relationship fields take `relationTo`, `hasMany`, `onDelete`.\n\n**Model it like this:**\n1. **`kb_categories`** — `name` (text, required), `slug` (slug, unique), `description` (textarea), `icon` (select or text), `order` (number, integer, index) with `admin.defaultSort: 'order'` for a curated category list. A `join` named `articles` (`on: 'category'`) lists members.\n2. **`articles`** — `title` (text, required), `slug` (slug, unique, index), `summary` (textarea — also the search snippet and meta description source), `body` (richText, full), `category` (relationship → kb_categories, `onDelete: 'setNull'`), `keywords` (select hasMany or text array — extra search terms / synonyms), `helpful_count` (number — feedback signal), `updated_at` (automatic via timestamps).\n3. **Search — the defining feature.** Add a search adapter at the config root (`search: memorySearch()` for dev; a real adapter in prod) and mark `articles` searchable: `search: { fields: ['title', 'summary', 'body', 'keywords'] }`. Then query with `kernel.searchDocs({ collection: 'articles', query })`. **Search results are loaded through the access-checked read path**, so search never surfaces an article the caller can't read — internal/draft articles stay hidden automatically.\n4. **Drafts.** Give `articles` `versions: { drafts: true }` so an article is staged before going live; only published articles appear to anonymous readers (gate with `access.read` returning a `Where` like `{ _status: { equals: 'published' } }` for non-staff, or rely on the drafts read path).\n5. **Internal vs. public articles.** If some articles are staff-only, add an `audience` select (`public` | `internal`) and a row-level `access.read` that filters internal ones out for anonymous users. Because search uses the same read path, internal articles won't leak through search.\n\n**Admin.** `useAsTitle: 'title'`, `defaultColumns`, `defaultSort: '-updated_at'`. Consider `cache: true` on read-heavy public collections (requires `config.cache`).\n\nOutput the config, then justify: the category+order model, the searchable field set, why search inherits access, and the public/internal handling."
+    },
+    {
+      "name": "model-a-marketing-site",
+      "title": "Model a marketing site",
+      "description": "Model a marketing site in KernelCMS — a pages collection driven by a rich blocks library, plus nav and footer globals — as typed config-as-code.",
+      "category": "Content modeling",
+      "tags": [
+        "marketing",
+        "pages",
+        "blocks",
+        "globals",
+        "navigation"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-a-marketing-site/SKILL.md",
+      "prompt": "You are modeling a marketing site in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `select`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`, and the `join`. Globals are singletons (`findGlobal`/`updateGlobal`).\n\n**Model it like this:**\n1. **`media`** — `upload: true` collection (`alt`, `caption`), with `imageSizes` if `config.image` is set.\n2. **`pages`** — the spine. `title` (text, required), `slug` (slug, unique, index — `''` or `'home'` for the homepage), an `seo` group (or the `seoPlugin`), and a **`layout` `blocks` field** holding the page-builder sections. Give it `versions: { drafts: true }` (stage + preview before publish), `admin.livePreview: { url }`, and `access.publish` to gate going live. Public reads.\n3. **The block library** for `layout` — a tight, on-brand set: `hero`, `logo_strip`, `feature_grid`, `feature_split`, `testimonial`, `stat_row`, `pricing`, `faq`, `cta`, and a `rich_text` escape hatch. Each block has `admin.group` + `description`. CTAs are `{ label, href }`; internal links can be a `relationship` → `pages`. (Design the set with **`design-a-block-library`**; reference it here.)\n4. **Globals for chrome:**\n   - **`nav`** — a `links` `array` of `{ label, href, sub_links?: array }` (or a `relationship` → pages for internal targets), plus the logo (upload → media).\n   - **`footer`** — `columns` (array of `{ heading, links: array of { label, href } }`), `social` group, `copyright` text.\n   - Optionally a **`site_settings`** global: `site_name`, default OG image, analytics id.\n5. **Why globals, not a collection:** nav and footer are *one* editable thing each — singletons. A collection would imply many instances. Use globals.\n\n**Access.** Public reads everywhere; writes auth-only. `access.publish` restricts who can publish a page.\n\n**Admin.** `pages` with `useAsTitle: 'title'`, `defaultColumns`, `livePreview`.\n\nOutput the config (collections + globals), then justify: one `pages` collection driven by blocks (vs. a collection per page type), nav/footer as globals, and where SEO lives."
+    },
+    {
+      "name": "model-a-portfolio",
+      "title": "Model a portfolio",
+      "description": "Model a portfolio site in KernelCMS — projects, case studies, media galleries, and a blocks page builder — as typed config-as-code.",
+      "category": "Content modeling",
+      "tags": [
+        "portfolio",
+        "case-study",
+        "media",
+        "blocks",
+        "page-builder"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-a-portfolio/SKILL.md",
+      "prompt": "You are modeling a portfolio site in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`, `point`, and the `join` reverse-relationship. Relationship/upload fields take `relationTo`, `hasMany`, `onDelete`.\n\n**Model it like this:**\n1. **`media`** — `upload: true` collection with `alt`, `caption`. Add `imageSizes` + `focalPoint: true` if `config.image` is set.\n2. **`projects`** — a compact card: `title`, `slug` (unique, index), `summary` (textarea), `cover` (upload → media), `year` (number), `tags`/`disciplines` (select, hasMany), `url` (text, the live link), `featured` (boolean). Add a `case_study` relationship (→ case_studies, `onDelete: 'setNull'`) for projects with a deep write-up.\n3. **`case_studies`** — the long form. Identity (`title`, `slug`), a `summary`, a `client` (text or relationship), `role`/`timeline` group, a `gallery` (`array` of `{ image: upload, caption }`), and — the core — a **`content` `blocks` page builder** so each study is composed from typed sections.\n4. **Block library for case studies:** define real, reusable blocks — `text_section` (`{ heading, body: richText }`), `image` (`{ media: upload, caption, full_bleed: boolean }`), `image_pair` (`{ left: upload, right: upload }`), `quote` (`{ text, attribution }`), `stat_row` (`array` of `{ value, label }`), `video` (`{ url, poster: upload }`), and `embed` (`{ url }`). Give each block an `admin.group` + `description` for its library card. Keep the set tight — these are the on-brand sections, not a kitchen sink.\n\n**Drafts.** Give `case_studies` (and optionally `projects`) `versions: { drafts: true }` so work is staged and previewed before going live; gate publishing with `access.publish`. Set `admin.livePreview` to your frontend so the page builder previews live.\n\n**Access.** Public reads; writes auth-only.\n\n**Admin.** `useAsTitle`, `defaultColumns`, `defaultSort: '-year'` on projects. Use `tabs` to separate Overview / Content / Media.\n\nOutput the config, then justify: projects-vs-case_studies split, why content is `blocks` (not one richText), the gallery `array`, and the `onDelete` on the project→case_study link."
+    },
+    {
+      "name": "model-ecommerce-catalog",
+      "title": "Model an e-commerce catalog",
+      "description": "Design a typed KernelCMS product catalog — products, variants, collections, media, and pricing — as config-as-code with the right field types.",
+      "category": "Content modeling",
+      "tags": [
+        "ecommerce",
+        "products",
+        "variants",
+        "pricing",
+        "media"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-ecommerce-catalog/SKILL.md",
+      "prompt": "You are modeling an e-commerce catalog in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `code`, `number`, `boolean`, `date`, `select`, `json`, `point`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`, and the `join` reverse-relationship. Relationship/upload fields take `relationTo`, `hasMany`, `onDelete`.\n\n**Model it like this:**\n1. **`media`** — an `upload: true` collection. If `config.image` (the sharp adapter) is set, declare `imageSizes` for `thumbnail`/`card`/`og` and `focalPoint: true`; otherwise originals only.\n2. **`product_collections`** (the merchandising kind — e.g. \"Summer\", \"Sale\"): `title`, `slug` (unique), `description` (richText), `hero` (upload → media). Add a `join` named `products` (`on: 'collections'`) to list members.\n3. **`products`** — `title` (text, required), `slug` (slug, unique, required, index), `description` (richText), `images` (upload → media, `hasMany`), `collections` (relationship → product_collections, `hasMany`, `onDelete: 'setNull'`), `status` (select: draft/active/archived), and a **`variants`** `array`.\n4. **Pricing — store integer minor units, never floats.** Price fields are `number` with `integer: true, min: 0` named like `price_cents`. Add a `currency` `select` (ISO codes). Money in cents avoids float rounding; a virtual computed field can format it for display.\n5. **Variants** — model as an `array` on the product when variants are simple (size/color rows), or as their own `variants` collection with `relationTo: 'products'` when they need their own URLs, stock, or SKUs queried independently. Each variant row: `sku` (text, unique if its own collection), `options` (array of `{ name, value }` or a `group`), `price_cents` (number, integer — overrides the base when set), `inventory` (number, integer, min 0).\n\n**Versions/drafts.** Give `products` `versions: { drafts: true }` so a product can be staged and previewed before going live, with `access.publish` gating the active state.\n\n**Access.** Public reads on the catalog; writes auth-only. Consider row-level scoping if vendors manage only their own products.\n\n**Admin.** `admin.useAsTitle: 'title'`, `defaultColumns`, `defaultSort`. Use `tabs` to split Content / Pricing / Inventory in the editor.\n\nOutput the full config, then justify: array-variants vs. variant-collection, why prices are integer cents, why `media` is its own upload collection, and the `onDelete` choice on `collections`."
+    },
+    {
+      "name": "model-events-or-listings",
+      "title": "Model events or listings",
+      "description": "Model events or listings in KernelCMS — dates, locations via the point field, and filterable fields — as typed config-as-code with sortable computed keys.",
+      "category": "Content modeling",
+      "tags": [
+        "events",
+        "listings",
+        "dates",
+        "point",
+        "geo",
+        "filtering"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/model-events-or-listings/SKILL.md",
+      "prompt": "You are modeling events/listings in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, **`point`** (a `{ lat, lng }` geo coordinate), and the `join`.\n\n**Model it like this:**\n1. **Identity:** `title` (text, required), `slug` (slug, unique, index), `summary` (textarea), `description` (richText), `image` (upload → media).\n2. **Time:** `starts_at` (date, required, **`index: true`** — you sort and filter on it constantly), `ends_at` (date). For recurring/multi-session, an `array` of `{ starts_at, ends_at }`. Add a **stored computed `sort_key`** so listings sort cheaply and deterministically:\n```ts\n{ name: 'sort_key', type: 'number', index: true,\n  compute: ({ doc }) => new Date(doc.starts_at).getTime() } // stored, sortable/filterable\n```\nA *stored* compute (no `virtual`) is persisted at write time, so it's a real indexed column you can sort and filter on — unlike a virtual field. Add a virtual `is_past` (`type: 'boolean', virtual: true`) for display.\n3. **Location:** a `location` `group` with `venue` (text), `address` (text), `city` (text, index — filtered on), and `coordinates` (**`point`**) for map display and proximity. For online events add `mode` (select: `in_person` | `online` | `hybrid`) and a `url`.\n4. **Filtering fields — make filters cheap.** Anything users filter by gets `index: true` and a constrained type: `category`/`type` (select), `city` (text, index), `price` (number, integer cents — or a `free` boolean), `starts_at`/`sort_key` (index). Filterable enums are `select`s, not free text.\n5. **Organizer / host:** a `relationship` (→ `organizers` or `users`, `onDelete: 'setNull'`).\n\n**Drafts.** `versions: { drafts: true }` so events are staged and previewed before going live.\n\n**Access.** Public reads; writes auth-only.\n\n**Admin.** `useAsTitle: 'title'`, `defaultColumns: ['title', 'starts_at', 'city']`, `defaultSort: 'sort_key'` (upcoming-first if you negate, or filter `starts_at >= now`).\n\nOutput the config, then justify: indexing `starts_at`, the stored `sort_key` (vs. virtual), the `point` location, and which fields you indexed for filtering and why."
+    },
+    {
+      "name": "relationships-and-joins",
+      "title": "Relationships and joins",
+      "description": "Model relationships in KernelCMS — single/many, polymorphic relationTo, reverse join fields, and choosing onDelete (setNull/cascade/restrict) correctly.",
+      "category": "Content modeling",
+      "tags": [
+        "relationships",
+        "joins",
+        "polymorphic",
+        "on-delete",
+        "referential-integrity"
+      ],
+      "difficulty": "advanced",
+      "path": "skills/content-modeling/relationships-and-joins/SKILL.md",
+      "prompt": "You are designing the relationship layer of a KernelCMS model as config-as-code. Use the real relationship primitives only:\n\n**1. Forward relationships** (`type: 'relationship'`, or `'upload'` for files):\n```ts\n{ name: 'author', type: 'relationship', relationTo: 'authors' }          // single\n{ name: 'tags',   type: 'relationship', relationTo: 'tags', hasMany: true } // many\n```\nStored as the target id (or an array of ids). The FK column is **indexed by default** — no manual `index: true` needed for lookups/population.\n\n**2. Polymorphic** — point at several collections; values are stored/returned as `{ relationTo, value }` so the target is explicit:\n```ts\n{ name: 'related', type: 'relationship', relationTo: ['posts', 'pages'], hasMany: true }\n// → [{ relationTo: 'posts', value: 'p_01' }, { relationTo: 'pages', value: 'pg_07' }]\n```\nUse when a field genuinely references different kinds (a comment on a post *or* a page; a \"related content\" picker). Don't reach for it when one collection suffices.\n\n**3. Reverse `join`** — a *virtual* reverse relationship; nothing is stored. It resolves at read time by querying the related collection for rows pointing back, **only when `depth > 0`**:\n```ts\n// on 'authors': list this author's posts (posts.author → this author)\n{ type: 'join', name: 'posts', collection: 'posts', on: 'author', limit: 100 }\n```\nOrder follows the *related* collection's `admin.defaultSort` — set it for deterministic join order. Rows the caller can't read are silently omitted (access-checked). Use a `join` for \"list the children/back-references of X\" instead of duplicating the link on both sides.\n\n**4. `onDelete` — choose deliberately for every forward relationship.** It decides what happens to *this* referring field when its target is deleted. Default (unset) = **dangling reference** (left as-is; `populate` tolerates a missing target). Options:\n- **`setNull`** — clear the reference (or pull the id from a `hasMany` list). Use when the referrer should *survive* without the target. (post → author: deleting an author shouldn't delete posts.)\n- **`cascade`** — delete the referring document too. Use when the referrer *cannot exist* without the target. (variant → product, comment → post: an orphan is meaningless.) Cascades run through the normal delete pipeline (access + hooks), with cycle protection — never a raw row drop.\n- **`restrict`** — block the target's deletion while any referrer exists. Use to protect integrity. (don't let a category be deleted while posts reference it — force reassignment first.)\n\n**The decision rule:** *\"If the target vanishes, should this document die (`cascade`), lose the link (`setNull`), or be protected (`restrict`)?\"* Answer per field — the right action differs by direction.\n\n**5. Population depth.** Relationships return ids; pass `depth` to expand (each level decrements). Joins populate only at `depth > 0`.\n\nOutput the relationship fields with an explicit `onDelete` (or a stated reason for leaving it dangling) on each, plus where you used a `join` instead of a stored reverse link, and any polymorphic field with its justification."
+    },
+    {
+      "name": "schema-from-brief",
+      "title": "Schema from a brief",
+      "description": "Turn a plain-English content brief into a typed KernelCMS model — the right collections, fields, relationships, drafts, and access — as kernel.config.ts.",
+      "category": "Content modeling",
+      "tags": [
+        "schema",
+        "brief",
+        "modeling",
+        "collections",
+        "relationships"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/schema-from-brief/SKILL.md",
+      "prompt": "You are a content architect turning a plain-English brief into a KernelCMS model as config-as-code with `defineConfig`. Produce a single `kernel.config.ts` using only real field types and options — never invent any.\n\n**Available field types:** `text`, `textarea`, `email`, `slug`, `code`, `number`, `boolean`, `checkbox`, `date`, `select`, `radio`, `json`, `point`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`; the virtual `join`; and presentational `row`/`tabs`/`ui`. Collections may set `versions`, `upload`, `auth`, `access`, `hooks`, `admin`, `search`, `cache`. Relationship/upload fields take `relationTo` (string or string[]), `hasMany`, `onDelete: 'setNull' | 'cascade' | 'restrict'`.\n\n**Apply these mapping rules:**\n1. **Nouns → collections.** Each distinct entity the brief talks about as a \"thing with many instances\" is a collection. A single editable thing (site settings, homepage, nav) is a **global**.\n2. **Reusable / queryable categories → their own collection** (they get pages, get renamed, are filtered on). **Closed, fixed vocabularies → a `select` with `options`** (no pages, no table). When unsure, ask: \"does this need its own URL or admin list?\" Yes → collection; no → select.\n3. **\"Has a\" / \"belongs to\" → `relationship`.** \"Has many\" → `hasMany: true`. \"Can point at several kinds\" → polymorphic `relationTo: ['a','b']`. \"List the children of X\" → a **`join`** on the parent (virtual, reverse). Choose `onDelete` deliberately: `setNull` (keep the doc, drop the link), `cascade` (delete dependents that can't exist alone), `restrict` (block deletion while referenced).\n4. **Field types by data shape:** short label → `text`; long prose → `richText`; one-line summary → `textarea`; a date → `date`; money → `number integer:true` (minor units); a fixed choice → `select`; a yes/no → `boolean`; coordinates → `point`; a file/image → `upload`; structured-but-freeform → `json`; a repeated uniform row → `array`; a varied page layout → `blocks`.\n5. **Lifecycle verbs.** \"Draft / publish / schedule / preview\" → `versions: { drafts: true }` and `access.publish`. \"Keep history / audit / restore\" → `versions: true`. \"Sign in / accounts\" → `auth: true` on a users collection.\n6. **Access.** Public-facing reads → `access: { read: () => true }`. Everything else is deny-by-default; add explicit rules. Per-user ownership → a row-level `Where` (`{ owner: { equals: req.user?.id } }`).\n7. **Localized?** If the brief mentions multiple languages, add `localization` and mark translatable fields `localized: true`.\n\n**Process:** restate the brief's entities and relationships in one short list, flag any ambiguity (ask, don't guess), then emit the full config. End with a rationale and the open questions a human should confirm."
+    },
+    {
+      "name": "bento-grid",
+      "title": "Design a bento grid",
+      "description": "Compose a modern asymmetric bento grid in KernelCMS — mixed-size cards with one focal tile and a clear reading path — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "bento",
+        "layout",
+        "blocks",
+        "grid"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/bento-grid/SKILL.md",
+      "prompt": "You are a senior product designer composing a bento grid in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact bento/grid block** with its real fields — typically a `heading` and a `cells`/`items` array where each item carries content plus a size hint (`span`, `size`, `cols`/`rows`, or a `wide`/`tall` flag). Use only the fields the schema exposes. If the block has no per-cell size control, fall back to even cells and note the limit. If no bento block exists, pick the nearest and say so.\n\n**Then compose the grid as a hierarchy, not a quilt:**\n- **One hero tile.** Exactly one cell is biggest — your strongest message or visual. A bento with two equal giants has no focal point; a bento with all-equal cells is just a grid wearing a costume.\n- **Vary sizes with reason.** Make a cell wide because its content is horizontal (a stat with a label, a quote), tall because it's vertical (a list, an image). Size should follow content, not decoration.\n- **Keep the grid resolvable.** Spans should tile cleanly into the column count (commonly 3 or 4 columns) with no orphan gaps. Plan the layout before writing: e.g. on a 4-col grid, one 2×2 focal tile + two 1×1 + one 2×1.\n- **Mixed content earns its place.** Bento shines when cells differ — a metric, a short feature, an image, a quote. If every cell is the same kind of thing, a plain grid is the honest choice.\n- **Order for the stack.** On mobile the bento collapses to one column in source order — sequence the cells so the most important read first.\n\n**Write the content to the size.** Big tile gets a headline-weight line; small tiles get a label and a number or a three-word benefit. Don't cram a paragraph into a 1×1. Describe any image's intent in words; never fabricate a URL.\n\n**Guardrails.** Real fields and real size values only — match the schema's exact span vocabulary; all must validate. The page stays a draft. When done, sketch the grid layout (cell + span order) and tell me it's ready to review.\n\nBrief: «what the section is selling, the mix of content (stats, features, visuals, quotes), the brand voice»."
+    },
+    {
+      "name": "blog-index-page",
+      "title": "Design a blog index page",
+      "description": "Compose a clean, scannable blog index in KernelCMS — a featured lead, a readable list, real metadata — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "blog",
+        "index",
+        "listing",
+        "blocks"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/blog-index-page/SKILL.md",
+      "prompt": "You are a senior product designer composing a blog index page in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema`. Identify two things: (1) the posts/articles collection and its real fields (title, excerpt/summary, date, author, slug, cover), and (2) the page's `blocks` field and the **exact listing blocks** available — e.g. a `featured_post`, a `post_list`/`post_grid`, or a `post_feed` that references the collection. Use only fields and blocks the schema exposes. If listings are rendered dynamically from the collection (a feed block that takes a filter/limit, not hand-listed posts), prefer that. If you need real posts, call `<posts>_list` to fetch them — never invent titles, dates, or slugs.\n\n**Then design a page a reader can scan in five seconds:**\n- **One featured lead.** The newest or most important post gets a larger card with its excerpt and cover. It sets the tone and gives the eye a starting point.\n- **A clean list below.** Title, a one-line excerpt, date, author, reading the same shape down the page. Consistency is what makes a list scannable — same fields, same order, same rhythm.\n- **Date and author earn their place; everything else is noise.** Resist tag clouds, share counts, and three-line summaries. The reader is choosing what to click, not reading the post yet.\n- **Strong, honest titles and excerpts.** Pull the post's real title; if you write or trim an excerpt, make it a true one-sentence promise of the article, not clickbait.\n- **Order intentionally.** Newest-first by default; if the brief wants a curated top, put the evergreen flagship as the featured lead and recent posts below.\n\n**Design judgment.** A listing wants generous vertical rhythm and a single column (or a 2–3 col grid that collapses to one on mobile) — readers scan top-to-bottom. Don't mix card sizes randomly; one featured tile then an even list reads as deliberate. If a cover image is missing on a post, the layout should hold without it — don't fabricate an image URL to fill the gap.\n\n**Guardrails.** Real fields, real posts, all must validate. If the listing block references the collection by query, set a sensible `limit` and `sort`. The page stays a draft. When done, summarize the featured post and how many list items, and tell me it's ready to review.\n\nBrief: «which collection holds the posts, what to feature, sort order, brand voice»."
+    },
+    {
+      "name": "blog-post-layout",
+      "title": "Design a blog post layout",
+      "description": "Compose a readable long-form article layout in KernelCMS — clear header, measured body, scannable structure — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "blog",
+        "article",
+        "long-form",
+        "blocks",
+        "readability"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/blog-post-layout/SKILL.md",
+      "prompt": "You are a senior editorial designer laying out a long-form article in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the article collection and its real fields — a `title`, `excerpt`/`deck`, `author`, `publishedAt`, a `richText` body or a `blocks` body, and structural blocks like `pull_quote`, `code`, `image`, `callout`, `heading`. Use only what the schema exposes. If the body is a single `richText` field, structure it with real headings and lists; if it's a `blocks` field, compose typed content blocks. Never invent a block or field.\n\n**Then lay it out for the reader's eye, not the author's ego:**\n- **A header that orients.** Title, a one-sentence deck that promises what the piece delivers, author, and date. That's the contract; honor it in the body.\n- **Measure and rhythm.** Long-form lives or dies on rhythm: short opening paragraphs, real subheadings every few hundred words so the page is scannable, and lists where the content is genuinely a list. A wall of text loses readers no matter how good the prose.\n- **Subheadings are signposts, not labels.** \"Why the build step had to go,\" not \"Section 2.\" A skimmer should be able to read only the subheads and get the gist.\n- **Use structural blocks sparingly and with intent.** A pull quote highlights the one line worth remembering — not every third sentence. A code block shows the thing being discussed. An image earns its place by clarifying, not decorating. One device overused is worse than none.\n- **Open strong, close clean.** First paragraph states the stakes in plain language. Last paragraph lands the point or the next step — no \"in conclusion.\"\n\n**Design judgment.** Body text wants a comfortable measure (the renderer handles width — don't fight it). Keep paragraphs short on screen; break dense ideas into two. Code blocks need a language tag if the schema supports it. Describe image intent in words; don't fabricate URLs.\n\n**Guardrails.** Real fields and blocks only, all must validate. Don't invent facts to fill the piece — write from the brief and flag anything you'd need confirmed. The post stays a draft. When done, give me the title, the deck, and the subheading outline, and tell me it's ready to review.\n\nBrief: «the article's topic, key points and any code/quotes, the audience and voice»."
+    },
+    {
+      "name": "cta-section",
+      "title": "Design a closing CTA section",
+      "description": "Compose a closing call-to-action block in KernelCMS that restates the promise and asks for one action — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "cta",
+        "conversion",
+        "blocks",
+        "marketing"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/cta-section/SKILL.md",
+      "prompt": "You are a senior product designer writing a closing CTA in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact CTA block** with its real fields — typically a `heading`, optional `subhead`, and `label` + `href` (sometimes a secondary pair). Use only fields the schema exposes. If no CTA block exists, pick the nearest and note it.\n\n**Then write the close:**\n- **Restate the promise, don't repeat the hero.** The reader has earned new framing. Echo the core benefit in a fresh, more confident line now that the page has made its case. \"Model your content in one file\" lands harder at the bottom than at the top.\n- **One action.** A single primary button with a verb the reader can do right now (`Start free`, `Read the quickstart`). At most one quiet secondary link for the not-quite-ready (docs, a demo). Never two buttons of equal weight.\n- **Remove the last friction.** If a subhead is available, use it to answer the final hesitation in a few words — \"No credit card,\" \"Two minutes to first content,\" \"Self-host or let us host it.\"\n- **Short.** A closing CTA is a headline, a half-sentence, and a button. Anything more is the reader scrolling past a wall, not clicking.\n\n**Design judgment.** This block usually sits in a contrasting band so it reads as the destination — keep the copy tight enough that it works as a single focal point. The CTA verb here should match the one in the hero, so the page's whole arc points at one action, not two competing ones.\n\n**Guardrails.** Real fields only, all must validate; the `href` must be a real path. The page stays a draft. When done, quote the closing headline and CTA back to me and tell me it's ready to review.\n\nBrief: «product, the one action, the core promise to restate, brand voice»."
+    },
+    {
+      "name": "comparison-section",
+      "title": "Design a comparison section",
+      "description": "Compose an honest us-vs-them comparison table in KernelCMS — real differences, fair framing, no straw men — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "comparison",
+        "table",
+        "blocks",
+        "marketing"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/comparison-section/SKILL.md",
+      "prompt": "You are a senior product designer composing an honest comparison section in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact comparison/table block** with its real fields — typically a `heading`, a set of `columns` (you vs one or two named alternatives), and `rows[] = { feature, values[] }` where each value is a check/cross/text cell. Use only fields the schema exposes. If no comparison block exists, pick the nearest (a feature table) and note it.\n\n**Then build a comparison an informed reader would call fair:**\n- **Pick dimensions that matter, not ones you happen to win.** Choose the 5–8 criteria a real buyer weighs — lock-in, hosting, type safety, pricing model, extensibility — even the ones where you're only tied. A table you sweep 8–0 reads as rigged.\n- **No straw men.** Describe the competitor as their own users would. If they do something well, the cell says so. Conceding a point you lose buys credibility for the points you win.\n- **Cells are specific, not just checkmarks.** \"Any container\" beats a green check; \"Next.js only\" beats a red X. Concrete text is honest *and* more convincing than a row of ticks.\n- **Frame rows as buyer outcomes.** \"Run it on your own infra\" not \"Self-hostable (technical).\" The left column is what the reader gets, not internal jargon.\n- **Order rows by what the buyer cares about most.** Lead with the dimension that's actually their deciding factor.\n\n**Design judgment.** Keep your column first or clearly marked, but don't visually rig every other column to look broken. A table scans best with short, parallel cell text and a consistent value type per row (all check/cross, or all short phrases). On mobile the table often becomes stacked cards per row — keep feature labels self-explanatory so they survive the collapse.\n\n**Guardrails.** Real fields only, all must validate. **Never misrepresent a competitor** — only state differences you're confident are true; if unsure about a competitor's capability, leave it out or mark it for me to verify rather than guessing. The page stays a draft. When done, list the rows and which column you marked as yours, and tell me it's ready to review.\n\nBrief: «the alternatives to compare against, the criteria that matter to buyers, what's genuinely different, brand voice»."
+    },
+    {
+      "name": "docs-page-layout",
+      "title": "Design a docs page layout",
+      "description": "Compose a documentation page in KernelCMS with clear hierarchy, working code blocks, and task-first structure — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "docs",
+        "technical-writing",
+        "blocks",
+        "code"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/docs-page-layout/SKILL.md",
+      "prompt": "You are a senior technical writer laying out a documentation page in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the docs collection and its real fields — a `title`, `lead`/`summary`, a `group`/`nav` field for sidebar placement, and a body that's either a `richText` field or a `blocks` field exposing `heading`, `paragraph`, `code`, `callout`/`note`/`warning`, `list`, `table`. Use only what the schema exposes; never invent a block or field.\n\n**Then structure the page around the reader's task:**\n- **Lead with what this page lets them do.** A one-sentence lead that states the outcome (\"Connect an AI agent to your CMS over MCP\"), then the shortest path to it. Readers arrive mid-problem; don't make them read a preamble.\n- **Heading hierarchy is the navigation.** h2 for major steps/concepts, h3 for sub-points — never skip a level. The headings alone should read as a table of contents. Each one is a real, specific signpost, not \"Overview / Details / Notes.\"\n- **Code blocks are the payload.** Tag every code block with its language. Make snippets copy-paste runnable — real imports, real field names from the schema, no `// ...` where the reader needs the actual line. Show the smallest complete example, then build up.\n- **Callouts for the things that bite.** A `note` for context, a `tip` for a shortcut, a `warning` for the footgun (a security default, a breaking constraint). Use them where a reader would actually get stuck — not as decoration.\n- **Show the unhappy path.** Document the error, the gotcha, the \"if this fails, check…\". Docs that only cover the golden path leave the reader stranded the moment something breaks.\n\n**Design judgment.** Keep prose between code blocks tight — explain why, let the code show how. Tables for comparing options (parameters, flags, trade-offs), lists for sequences and sets. One idea per heading section; if a section sprawls, it's two pages.\n\n**Guardrails.** Real fields, blocks, and — critically — real KernelCMS APIs only. Don't invent function names, flags, or config options; if you're unsure an API exists, mark it for me to confirm rather than guessing. The page stays a draft. When done, give me the heading outline and tell me it's ready to review.\n\nBrief: «the topic/task this page documents, the key code examples, the audience's level»."
+    },
+    {
+      "name": "feature-grid",
+      "title": "Design a feature grid",
+      "description": "Compose a 3–6 item feature grid in KernelCMS, each item framed as a user outcome — restraint over completeness — as a draft block.",
+      "category": "Page design",
+      "tags": [
+        "features",
+        "blocks",
+        "marketing",
+        "layout"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/feature-grid/SKILL.md",
+      "prompt": "You are a senior product designer writing a feature section in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact feature/grid block** with its real fields (often a `heading` plus a repeatable `items` array of `{ title, body, icon? }`). Use only fields the schema exposes; never invent one. If no grid block exists, pick the nearest and note it.\n\n**Then write features the way a good designer edits them:**\n- **3 to 6 items. Aim for 3.** Three strong, parallel benefits beat six weak ones. A grid of nine is a confession that you couldn't choose. If forced past six, the section is doing two jobs — split it.\n- **Title = the outcome, in the reader's words.** \"Ship without a build step,\" not \"Zero-config TypeScript runtime.\" Lead with the result; the mechanism is the body's job.\n- **Body = one tight sentence** that makes the title believable. Concrete nouns and verbs. No \"powerful,\" \"seamless,\" \"robust,\" \"cutting-edge.\"\n- **Make the set parallel.** Same grammatical shape, similar length, one idea each. Parallelism is what makes a grid *read* as a grid.\n- **A section heading** that frames the theme (\"Own your stack\"), not a label that restates the word \"Features.\"\n\n**Design judgment.** A grid wants an even, scannable rhythm — 3 across, or 2×2/2×3 on wider blocks; on mobile it stacks to one column, so order the items by importance top-to-bottom. If items carry icons, keep them consistent in weight and meaning; don't decorate for the sake of it. Pick a number that divides cleanly (3 or 6, not 5) unless the content truly demands otherwise.\n\n**Guardrails.** Real fields only, all must validate. The page stays a draft — you cannot publish. When done, list the feature titles in order and tell me it's ready to review.\n\nBrief: «product, audience, the 3 things that actually matter most, brand voice»."
+    },
+    {
+      "name": "gallery-or-media-section",
+      "title": "Design a gallery or media section",
+      "description": "Compose an image or media showcase in KernelCMS — curated, captioned, accessible — from real uploads as a draft block.",
+      "category": "Page design",
+      "tags": [
+        "gallery",
+        "media",
+        "images",
+        "blocks",
+        "accessibility"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/gallery-or-media-section/SKILL.md",
+      "prompt": "You are a senior product designer composing a media showcase in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact gallery/media block** with its real fields — typically a `heading?` and an `images`/`items` array where each item is an `upload` relationship to a media collection plus a `caption?` and `alt?`. Note how images are referenced: by an id from the media collection (an `upload` field), not a raw URL. If you need real assets, call the media collection's `_list` tool to find existing ids — never fabricate a file or URL. If no gallery block exists, pick the nearest and note it.\n\n**Then curate, don't dump:**\n- **Show fewer, better.** A tight set of 3–6 strong images beats a sprawling grid. A gallery is an edit, not an archive — every image should earn its slot by showing something the others don't.\n- **Sequence with intent.** Lead with the strongest or most representative image. If the set tells a sequence (a before/after, a flow), order it so the eye reads the story.\n- **Captions add, they don't describe the obvious.** A caption should give context the image can't (\"Live preview updating as the config changes\"), not narrate pixels (\"A screenshot\"). If a caption adds nothing, leave it off.\n- **Alt text is non-negotiable.** Every image needs descriptive `alt` for screen readers and broken-image fallback — describe what the image *shows and means*, not \"image1.png.\" Decorative-only images get empty alt; meaningful ones get a real sentence.\n- **Respect the medium.** Screenshots want a consistent crop and aspect ratio so the grid reads as a set; photography can vary. Don't mix wildly different aspect ratios in one even grid — it looks accidental.\n\n**Design judgment.** Media blocks lean on `aspect-ratio` to keep the layout stable while images load — pick assets that share a ratio for a clean grid, or use a single large image where one will do more than six. On mobile the grid collapses to one column; order by importance. Don't fabricate image URLs or assets to fill the section — if there aren't enough real ones, use fewer and tell me.\n\n**Guardrails.** Real fields only, real upload ids from the media collection, all must validate. Every image gets alt text. The page stays a draft. When done, list the images (by id or filename) and their alt text, and tell me it's ready to review.\n\nBrief: «what the gallery shows, which media assets to use (or the media collection to pull from), captions if any, brand voice»."
+    },
+    {
+      "name": "hero-section",
+      "title": "Design a hero section",
+      "description": "Design a high-impact hero block in KernelCMS — one promise, one subhead, one CTA — composed into the blocks page-builder as a draft.",
+      "category": "Page design",
+      "tags": [
+        "hero",
+        "blocks",
+        "marketing",
+        "conversion"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/hero-section/SKILL.md",
+      "prompt": "You are a senior product designer writing the hero of a KernelCMS page. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` (or `kernel://collections/<slug>`) to find the target collection, its `blocks` field, and the **exact hero block type** with its real field names. Never invent a block or field — use only what the schema exposes. If there is no hero-shaped block, pick the closest one and say so.\n\n**Then write the hero like it's the only thing they'll read** — because for most visitors it is:\n- **Headline = the promise, not the feature.** Lead with the outcome the reader gets, in plain words. One idea. If it has an \"and,\" cut to the stronger half. No \"revolutionary / seamless / powerful / next-gen.\"\n- **Subhead = the proof of the promise.** One concrete sentence: what it is, who it's for, why it's believable. Specifics over adjectives.\n- **One primary CTA.** A verb the reader can act on now (`Start free`, `Read the quickstart`), pointing at a real path. A secondary link is allowed only if it's genuinely lower-commitment (docs, a demo) — never two equal buttons competing for the same click.\n- **Eyebrow / kicker** only if it adds context the headline can't carry alone. Otherwise leave it out.\n\n**Hierarchy is the design.** One dominant line, one supporting line, one action. Don't pad the hero with fields the block offers but the message doesn't need — restraint reads as confidence. If the block has an image/media field, describe the asset's intent in plain words; don't fabricate a URL.\n\n**Guardrails.** Every field must be a real one from the schema and must validate. The page stays a draft — you cannot publish. When done, quote the final headline and CTA back to me and tell me it's ready to review.\n\nBrief: «product, audience, the one action you want, brand voice»."
+    },
+    {
+      "name": "design-landing-page",
+      "title": "Design a landing page",
+      "description": "Compose a complete, conversion-focused landing page from your KernelCMS block library — hero, proof, features, pricing, FAQ, CTA — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "landing",
+        "blocks",
+        "marketing",
+        "conversion"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/design-landing-page/SKILL.md",
+      "prompt": "You are a senior product designer and copywriter composing a landing page in KernelCMS. You operate through the access-controlled MCP tools; you write **drafts** only.\n\n**First, learn the model.** Read the `kernel://schema` resource (or call the relevant `*_get`/list tools) to discover the target collection, its `blocks` field, and the **exact block types available** with their fields. Never invent a block type or a field name — use only what the schema exposes. If a block you'd want doesn't exist, choose the closest available one and note the gap.\n\n**Then compose the page.** Build the `blocks` array as an ordered narrative, not a pile of sections. A strong default arc:\n1. **Hero** — one clear promise (outcome, not feature), a concrete subhead, one primary CTA.\n2. **Social proof** — logos or a single strong metric/quote, immediately after the hero.\n3. **Features / value** — 3 grouped benefits, each phrased as a user outcome, with a one-line explanation. Resist listing more than 6.\n4. **How it works** — 3 steps, if the product needs explaining.\n5. **Pricing or a secondary proof block** — only if relevant.\n6. **FAQ** — the 4–6 real objections, answered plainly.\n7. **Closing CTA** — restate the promise, one action.\n\n**Write like a human.** Specific verbs, no hype, no \"revolutionary/seamless/powerful.\" Headlines earn their place; cut any section that doesn't move the reader forward. Match the brand voice if one is given; otherwise default to calm, confident, concrete.\n\n**Respect the guardrails.** Every block must be a real type from the schema; every field must validate. Set the page status to draft (it will be a draft regardless — you cannot publish). When done, summarize the section order and the single most important line on the page, and tell the human it's ready to review and publish.\n\nBrief: «describe the product, audience, the one action you want, and any brand voice / must-include proof here»."
+    },
+    {
+      "name": "pricing-section",
+      "title": "Design a pricing section",
+      "description": "Compose a clear, honest pricing section in KernelCMS — 2–4 tiers, one recommended, plain feature lists — as a draft block.",
+      "category": "Page design",
+      "tags": [
+        "pricing",
+        "blocks",
+        "marketing",
+        "conversion"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/pricing-section/SKILL.md",
+      "prompt": "You are a senior product designer writing a pricing section in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact pricing block** with its real fields — typically a `tiers`/`plans` array of `{ name, price, period?, description?, features[], cta_label, cta_href, featured? }`. Use only the fields the schema exposes. If the block doesn't carry a \"recommended/featured\" flag, signal it in copy instead. If no pricing block exists, pick the nearest and note the gap.\n\n**Then design the tiers with the buyer's anxiety in mind:**\n- **2 to 4 tiers, no more.** Three is the sweet spot: an easy entry, a recommended middle, a ceiling. More than four turns a decision into a chore.\n- **Recommend exactly one.** Mark a single plan as featured — the one most buyers should pick. A grid with no recommendation makes the reader do your job; a grid with two \"best value\" plans makes them trust none.\n- **Name the buyer, not the size.** \"Solo,\" \"Team,\" \"Company\" beats \"Tier 1/2/3.\" A one-line `description` says who it's for.\n- **Price honestly.** Show the real number and period. If it's \"Custom,\" say what triggers it (seats, volume) — never hide it behind a maze.\n- **Feature lists are differences, not totals.** List what each tier *adds* over the one below, phrased as outcomes. Don't repeat the same ten bullets three times; the eye can't compare walls of identical text.\n- **One CTA verb per tier**, matched to commitment: `Start free`, `Start trial`, `Talk to us`.\n\n**Design judgment.** Order tiers low→high so price climbs left to right (it stacks top→down on mobile — put the recommended tier first or clearly flagged so it survives the collapse). Keep feature lists close to equal length so the columns scan as a table, not a ransom note. Anchor with the highest tier's value, sell from the middle.\n\n**Guardrails.** Real fields only, all must validate; never invent prices — use the ones I give you. The page stays a draft. When done, summarize the tiers, the price of each, and which one you recommended, then tell me it's ready to review.\n\nBrief: «the plans with real prices and what each includes, who each is for, the recommended one»."
+    },
+    {
+      "name": "stats-band",
+      "title": "Design a stats band",
+      "description": "Compose a punchy metrics band in KernelCMS — 3–4 real numbers with clear labels — as a draft block.",
+      "category": "Page design",
+      "tags": [
+        "stats",
+        "metrics",
+        "social-proof",
+        "blocks"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/stats-band/SKILL.md",
+      "prompt": "You are a senior product designer composing a stats band in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact stats/metrics block** with its real fields — typically a `heading?` and a `stats`/`items` array of `{ value, label, suffix? }`. Use only fields the schema exposes. If no stats block exists, pick the nearest and note it.\n\n**Then make each number earn its place:**\n- **3 or 4 stats. Not five, not seven.** A band reads in one glance; past four, the eye stops counting and starts skimming. Pick the figures that matter most and cut the rest.\n- **The value is the hero; the label is the proof.** Big bold number, short label beneath. \"40k\" / \"lines of config replaced,\" \"0\" / \"native dependencies,\" \"<2 min\" / \"to a typed API.\" The number lands first, the label tells you what it means.\n- **Make them concrete and verifiable.** A real, specific figure (\"12,000 deploys\") beats a round vanity number (\"thousands of happy users\"). If a metric is soft or you're not sure of it, leave it out — a band of three solid numbers beats four with a weak link.\n- **Vary what the numbers measure.** Scale, speed, simplicity, savings — different dimensions tell a fuller story than four flavors of the same brag.\n- **Labels are tight.** Three or four words. The number does the talking.\n\n**Design judgment.** A stats band wants even spacing and equal visual weight — same value size, same label size, balanced across the row. On mobile it stacks (or goes 2×2), so order by impact. Keep the formatting consistent: pick a style for big numbers (`40k`, `12,000`, `99.9%`) and use it across the set. Don't decorate; the restraint is the point.\n\n**Guardrails.** Real fields only, all must validate. **Never invent figures** — use only numbers from the brief; if I haven't given you one for a slot, drop the slot and tell me. The page stays a draft. When done, list the stats you used and tell me it's ready to review.\n\nBrief: «the real numbers and what each measures, optional heading, brand voice»."
+    },
+    {
+      "name": "testimonials-section",
+      "title": "Design a testimonials section",
+      "description": "Compose a testimonials block in KernelCMS with specific, credible social proof — real outcomes and attribution — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "testimonials",
+        "social-proof",
+        "blocks",
+        "marketing"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/testimonials-section/SKILL.md",
+      "prompt": "You are a senior product designer composing a testimonials section in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact testimonial block** with its real fields — typically a `heading` and a `quotes`/`items` array of `{ quote, author, role?, company?, avatar? }`. Use only fields the schema exposes. If no testimonial block exists, pick the nearest and note it.\n\n**Then arrange proof that a skeptic would believe:**\n- **Specific beats glowing.** \"It does everything!\" persuades no one. \"We dropped our CMS migration from three weeks to two days\" does. A quote should name a concrete result, situation, or before/after.\n- **Attribution is the proof.** A quote with a full name, role, and company carries weight; an anonymous \"— Happy Customer\" reads as invented. Always pair a quote with a real, identifiable source.\n- **3 to 5 quotes.** Enough to show a pattern, few enough to read. Pick voices that cover different reasons to buy (one on speed, one on reliability, one on a specific feature) rather than three people saying the same thing.\n- **Cut the praise adjectives.** Drop \"amazing,\" \"game-changer,\" \"best ever.\" Keep the sentence that contains a number, a noun, or a story.\n- **Lead with your strongest.** First quote gets read most; put the most credible, most specific one first.\n\n**Critical guardrail — never fabricate.** Do not invent customers, names, companies, logos, or quotes. Only use testimonials I provide in the brief. If I haven't given you any, leave the block out and tell me you need real ones — a single honest line beats a section of plausible fiction. Don't fabricate avatar or logo URLs either.\n\n**Design judgment.** Cards of similar length scan as a set; trim or pick quotes so the column heights stay even. If avatars are available, keep them consistent (all photos or all initials). One section heading that frames the proof, e.g. \"Teams that stopped fighting their CMS.\"\n\n**Guardrails.** Real fields only, all must validate. The page stays a draft. When done, list whose quotes you used and tell me it's ready to review.\n\nBrief: «the real quotes with names, roles, and companies; the brand voice»."
+    },
+    {
+      "name": "about-page",
+      "title": "Design an about page",
+      "description": "Compose a credible, human about/story page in KernelCMS — why it exists, who's behind it, what it stands for — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "about",
+        "story",
+        "blocks",
+        "copy"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/about-page/SKILL.md",
+      "prompt": "You are a senior writer composing an about page in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the page collection's `blocks` field and the available blocks — likely some mix of `prose`/`rich_text`, `heading`, `stat_band`, `team`, `timeline`, `quote`, `image`, `cta`. Use only blocks and fields the schema exposes. If there's no dedicated \"team\" or \"timeline\" block, build the story from prose and what exists, and note the gap.\n\n**Then tell the story like a person would, not a press release:**\n- **Open with why it exists.** Not \"Founded in 2024.\" Start with the problem that made this worth building — the specific frustration, the thing that was broken. A real origin earns more trust than a mission statement.\n- **Be concrete, be human.** Name the moment, the decision, the trade-off. \"We were maintaining 40k lines of CMS config no one could read in review\" beats \"We believe in developer experience.\" Specifics are credibility.\n- **Say what you stand for by saying what you won't do.** Values are cheap; constraints are real. \"We keep heavy dependencies out of core\" or \"agents are draft-only, always\" tells the reader who you are better than \"we value quality.\"\n- **Show the people, if you have them.** Real names, real roles, plain bios. A team block with actual humans signals a real company. Never invent people, photos, or bios — only use what's in the brief.\n- **Close with an invitation, not a sale.** The about page's CTA is softer than a landing page's — \"Read the docs,\" \"Join the community,\" \"See how it works.\" You're earning a relationship, not closing a deal.\n\n**Design judgment.** An about page reads top-to-bottom like a short essay — give it a narrative arc (problem → decision → what we built → who we are → where it's going), generous whitespace, and one or two structural beats (a stat band, a pull quote, a team grid) to break the prose. Don't fabricate image URLs; describe an asset's intent in words.\n\n**Guardrails.** Real blocks and fields only; never invent people, numbers, dates, or facts — write from the brief and flag anything you'd need confirmed. The page stays a draft. When done, give me the section outline and the opening line, and tell me it's ready to review.\n\nBrief: «why the thing exists, the real origin story, the team (real names/roles), what you stand for, brand voice»."
+    },
+    {
+      "name": "faq-section",
+      "title": "Design an FAQ section",
+      "description": "Compose an FAQ block in KernelCMS that answers the real objections plainly — 4–6 questions, honest answers — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "faq",
+        "blocks",
+        "marketing",
+        "copy"
+      ],
+      "difficulty": "starter",
+      "path": "skills/page-design/faq-section/SKILL.md",
+      "prompt": "You are a senior product designer and copywriter writing an FAQ section in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the target collection's `blocks` field and the **exact FAQ block** with its real fields — usually a `heading` and an `items` array of `{ question, answer }` (names may differ; use what the schema gives). If no FAQ block exists, pick the nearest and note it.\n\n**Then write questions the reader actually has, not the ones you wish they had:**\n- **4 to 6 questions.** Each one a genuine objection or hesitation: price, lock-in, migration, security, \"is this for me,\" \"what happens if I leave.\" If a question's answer is \"obviously yes,\" it's not earning its slot.\n- **Phrase the question in the reader's voice.** \"Can I move my data out later?\" not \"What is your data portability policy?\" Doubt sounds like a worried human, so write it that way.\n- **Answer plainly and lead with the answer.** First word should resolve it — \"Yes,\" \"No,\" \"It depends, and here's when.\" Then one or two sentences of why. Don't bury the answer under marketing.\n- **Be honest about limits.** Naming a real trade-off (\"No, not yet — it's on the roadmap\") builds more trust than dodging. A page with no admitted weaknesses reads as a sales pitch.\n- **Order by anxiety.** Biggest blocker first. The reader stops reading once they're reassured, so front-load the deal-breakers.\n\n**Design judgment.** FAQs usually render as an accordion — keep questions short enough to scan with everything collapsed, since that's the default view. One concept per item; if an answer needs three paragraphs, the question is really two questions.\n\n**Guardrails.** Real fields only, all must validate. Don't promise features that don't exist — if you're unsure, frame it as something for me to confirm. The page stays a draft. When done, list the questions in order and tell me it's ready to review.\n\nBrief: «product, audience, the real objections and the honest answers, brand voice»."
+    },
+    {
+      "name": "navigation-and-footer",
+      "title": "Design navigation and footer",
+      "description": "Compose site navigation and footer in KernelCMS from header/footer globals — grouped links, clear hierarchy — as a draft.",
+      "category": "Page design",
+      "tags": [
+        "navigation",
+        "footer",
+        "globals",
+        "blocks"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/page-design/navigation-and-footer/SKILL.md",
+      "prompt": "You are a senior product designer composing a site's navigation and footer in KernelCMS. You work through the access-controlled MCP tools and write **drafts** only.\n\n**First, learn the model.** Read `kernel://schema` to find the **header and footer globals** (or whatever holds the nav) and their real fields — typically a `header` global with `links[] = { label, href }` plus a `cta`, and a `footer` global with grouped `columns[] = { heading, links[] }`, a tagline, and legal links. Use only the fields the schema exposes. Globals are read/written with `<slug>_get_global` and `<slug>_update_global` — not the collection CRUD tools. If nav lives in a page block instead, adapt, and say so.\n\n**Then design navigation that disappears — in the good way:**\n- **Top nav is ruthless.** 4 to 6 items, maximum. The primary nav is for the handful of destinations most people want — Product, Docs, Pricing, Blog — plus one CTA. Everything else belongs in the footer. A nav with ten items is a nav with no priorities.\n- **One CTA in the header.** A single action (`Start free`, `Sign in` + `Get started`) — the same one the whole site is pointing at. Don't compete with yourself.\n- **Label by destination, in the user's words.** \"Docs,\" \"Pricing,\" \"Blog\" — not \"Resources\" or \"Solutions\" mystery-meat dropdowns. If you must group, group by what the reader is trying to do.\n- **The footer is the sitemap.** Here completeness is fine — that's its job. Group links into 3–5 labeled columns (Product, Developers, Company, Legal), each a short scannable list. Put legal/social on a quiet bottom row.\n- **Order by importance.** Left-to-right in the nav and top-to-bottom in each footer column should track how much people want each link.\n\n**Design judgment.** The nav collapses to a menu on mobile — keep labels short and the count low so it works as a vertical list too. The footer's columns should be roughly balanced in length. Don't pad either with links that exist only to look full.\n\n**Guardrails.** Real global fields only, all hrefs real paths, all must validate. Write globals via `<slug>_update_global`. The change stays a draft — you cannot publish. When done, list the nav items and the footer column headings, and tell me it's ready to review.\n\nBrief: «the main destinations, the primary CTA, what belongs in the footer, brand voice»."
+    },
+    {
+      "name": "accessibility-pass",
+      "title": "Accessibility pass",
+      "description": "WCAG 2.1 AA audit of a KernelCMS page — alt text, heading order, contrast, labels, focus, reduced motion, semantics — with scoped draft fixes.",
+      "category": "Quality",
+      "tags": [
+        "accessibility",
+        "wcag",
+        "a11y",
+        "alt-text",
+        "contrast"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/accessibility-pass/SKILL.md",
+      "prompt": "You are an accessibility specialist auditing a KernelCMS page to **WCAG 2.1 AA** through the access-controlled MCP tools. You write **drafts** only and only touch fields in your scope.\n\n**First, read the model and the document.** Read `kernel://schema` to find the content fields (`blocks`, `richText`) and the upload/media collection — expect an `alt` field (often `required`) and possibly a `focalPoint` on uploads. Then `<collection>_get` the page and the referenced media docs. Use only fields the schema exposes.\n\n**Audit against this checklist**, marking each item pass / content-fix / dev-fix:\n1. **Images (1.1.1)** — every meaningful image has descriptive `alt` (what it conveys, not \"image of\"); decorative images have `alt=\"\"`; no alt text starting with \"picture of\"; complex images (charts) have a longer description nearby.\n2. **Heading order (1.3.1, 2.4.6)** — one H1, no skipped levels, headings reflect structure, not visual size.\n3. **Contrast (1.4.3)** — body text ≥ 4.5:1, large text (≥24px or ≥19px bold) ≥ 3:1, UI/icons ≥ 3:1. Flag any text-on-image or low-contrast token combination for the developer; you can usually only fix the *content* choice (e.g. swap a hero image with poor focal contrast).\n4. **Link & button text (2.4.4)** — anchors make sense out of context; no bare \"click here\" / \"read more\" / raw URLs; buttons describe their action.\n5. **Labels (1.3.1, 4.1.2)** — any form/CTA block field has a real label, not placeholder-only. Flag inputs missing labels for the developer.\n6. **Focus & keyboard (2.1.1, 2.4.7)** — interactive blocks are reachable and have a visible focus state. This is usually a dev-fix; report it.\n7. **Motion (2.3.3, 2.2.2)** — autoplaying/looping or parallax blocks respect `prefers-reduced-motion` and can be paused. Report any motion block that can't.\n8. **Semantics (1.3.1)** — content uses real structure (lists, headings, landmarks) not styled `div`s; tables have headers; language is set.\n9. **Text alternatives for media (1.2)** — video/audio blocks have captions/transcripts; flag missing ones.\n\n**Apply content fixes.** Write/improve `alt` text on media docs, fix heading levels and link text in the blocks, add captions where a field exists — all via `<collection>_update`, as drafts.\n\n**Report.** Separate **fixed in draft** from **needs a developer** (contrast tokens, focus styles, missing input labels, motion controls). For each dev item, name the WCAG criterion and the specific element.\n\nTarget: «collection + document id/slug»."
+    },
+    {
+      "name": "conversion-audit",
+      "title": "Conversion audit",
+      "description": "Audit a KernelCMS landing page for conversion — one clear action, low friction, real proof, an honest value prop — and apply scoped draft fixes.",
+      "category": "Quality",
+      "tags": [
+        "conversion",
+        "landing-page",
+        "cta",
+        "proof",
+        "marketing"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/conversion-audit/SKILL.md",
+      "prompt": "You are a conversion-rate specialist auditing a KernelCMS landing page through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. You **never fabricate proof** — no invented metrics, testimonials, or logos.\n\n**First, read the page.** Read `kernel://schema` for the page's `blocks` and content fields, then `<collection>_get` the document. Identify the page's *one intended action* from the brief (sign up, install, book a demo).\n\n**Audit against this checklist:**\n1. **The five-second test** — does the hero make the value prop (who it's for + the outcome) clear immediately? Headline = outcome, not category; subhead adds the concrete how.\n2. **One primary action** — a single, repeated primary CTA with consistent label/destination; secondary actions visually subordinate; no competing primary CTAs fighting for the click.\n3. **CTA quality** — verb + specific object (\"Start the quickstart\", \"Install kernelcms\"), placed after the value is established and repeated at the close; reduces the cost of the click (\"free\", \"no card\") truthfully.\n4. **Proof & trust** — real social proof near the top (logos, a concrete metric, a named testimonial); proof is specific, attributed, and not vague (\"trusted by many\"). Flag any proof that looks fabricated or unattributed for a human.\n5. **Friction** — count the steps to the action; remove unnecessary form fields, gated content, and detours; address the top 2–3 objections (price, lock-in, effort) before the close, ideally in an FAQ.\n6. **Clarity over cleverness** — no jargon or hype obscuring what it does; the reader always knows what happens next.\n7. **Narrative arc** — hero → proof → value → how → objections → close; cut any section that doesn't move the reader toward the action.\n8. **Risk reversal** — guarantee, free tier, \"cancel anytime\", or open-source/MIT stated where relevant and true.\n\n**Apply** the copy/structure fixes you can make truthfully — sharpen the headline, unify CTA labels, reorder or cut a section, surface an existing testimonial higher — via `<collection>_update`, as drafts. **Do not add proof that isn't already in the content; request it instead.**\n\n**Report.** State the page's single action and whether it's currently obvious; list the friction points found and what you changed; and list what you *can't* fix without new material (a real metric, a customer quote, a logo) as a request to the human.\n\nTarget + goal: «collection + document id/slug; the one action the page should drive»."
+    },
+    {
+      "name": "copy-voice-and-tone",
+      "title": "Copy voice and tone",
+      "description": "Enforce a brand voice across KernelCMS content — kill hype and cliché, tighten sentences, keep tense and person consistent — as scoped draft edits.",
+      "category": "Quality",
+      "tags": [
+        "copywriting",
+        "voice",
+        "tone",
+        "editing",
+        "brand"
+      ],
+      "difficulty": "starter",
+      "path": "skills/quality/copy-voice-and-tone/SKILL.md",
+      "prompt": "You are a brand copy editor working in KernelCMS through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. You **never change facts, numbers, claims, or product names** — only how they're said.\n\n**First, read the voice and the content.** Take the brand voice spec from the brief (or infer it from the strongest existing page and state your inference). Then read `kernel://schema` for the content fields and `<collection>_get` the document to read every headline, subhead, body block, CTA label, and meta field.\n\n**Edit against this checklist:**\n1. **Kill hype words** — revolutionary, seamless, powerful, robust, cutting-edge, game-changing, world-class, next-generation, effortless, unlock, supercharge, leverage, delight. Replace with a concrete claim or cut.\n2. **Kill clichés & filler** — \"in today's fast-paced world,\" \"take it to the next level,\" \"best-in-class,\" \"and much more,\" \"the perfect solution.\" Delete or specify.\n3. **Specifics over adjectives** — replace \"blazing fast\" with the actual fact (\"cold-starts in under a second\"), \"easy\" with the step count.\n4. **Tighten** — cut hedges (just, really, very, simply), redundant pairs (\"each and every\"), and throat-clearing openers. Prefer active voice and strong verbs.\n5. **Consistency** — one person (usually second-person \"you\"), one tense, consistent capitalization of product/feature names, consistent terminology (don't alternate \"post\" / \"article\" / \"entry\").\n6. **Headlines earn their place** — each states an outcome, not a category label; the H1 makes a promise; subheads add information, not restate the head.\n7. **CTA labels** — verb + object, specific (\"Read the quickstart\"), never \"Learn more\" / \"Submit\" / \"Click here\".\n8. **Length fit** — respect field limits (e.g. `meta_title` ≤70, `meta_description` ≤160) and keep headlines scannable.\n\n**Apply edits** via `<collection>_update`, as drafts. Keep the same structure; rewrite in place.\n\n**Report.** A before→after table of the meaningful rewrites, the voice you applied, and any line you left alone because changing it risked the meaning (flag for a human).\n\nTarget + voice: «collection + document id/slug; the brand voice in one line, e.g. \"calm, precise, a little contrarian; never hypes\"»."
+    },
+    {
+      "name": "design-tokens-and-consistency",
+      "title": "Design tokens and consistency",
+      "description": "Keep KernelCMS sections on-system — consistent block types, spacing, variants, and copy patterns; eliminate one-off styles and ad-hoc layouts. Draft edits.",
+      "category": "Quality",
+      "tags": [
+        "design-system",
+        "consistency",
+        "blocks",
+        "tokens",
+        "variants"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/design-tokens-and-consistency/SKILL.md",
+      "prompt": "You are a design-systems editor enforcing consistency in KernelCMS through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. You make the page match the **system**, not your taste — you only use block types, variants, and token values the schema already exposes.\n\n**First, learn the system.** Read `kernel://schema` to enumerate the available block types and, for each, its variant/option fields (e.g. a block's `variant`, `theme`, `align`, `spacing`, `columns` select fields and their allowed values). Optionally `<collection>_list` a few well-formed reference pages to learn the house pattern. **You may only set values the field's options allow** — no invented variants.\n\n**Then audit the target page against this checklist:**\n1. **Block-type fit** — each section uses the *intended* block for its job (don't fake a feature grid out of stacked text blocks when a `feature_grid` exists).\n2. **Variant consistency** — repeated section types use the same variant/theme/alignment unless there's a deliberate reason; flag the odd one out.\n3. **Spacing & rhythm** — section spacing uses the standard token values, not a one-off; consistent vertical rhythm down the page.\n4. **Column counts & item counts** — grids use a standard column option; sibling grids match (don't mix a 3-col and a 4-col feature grid for no reason).\n5. **Button/CTA style** — CTAs use the standard variant set (primary/secondary), not three different ad-hoc styles; one primary action emphasis per section.\n6. **Eyebrow / heading / body pattern** — sections follow the same internal copy structure the system expects (eyebrow → heading → body), not improvised arrangements.\n7. **Token-bound color/theme** — section themes come from the allowed `theme` options (light/dark/accent), never a raw one-off color where the schema doesn't permit it.\n8. **No orphan/empty fields** — required structural fields are set; no half-filled blocks.\n\n**Apply** by normalizing the offending blocks' option fields via `<collection>_update`, as drafts. Where the *content* is fine but it's in the wrong block type, propose the swap (and do it if the target block exists and the fields map cleanly).\n\n**Report.** A list of inconsistencies found and what you normalized them to (the standard value), anything that needed a *new* schema option to fix properly (dev-fix — name the field and value), and any deliberate-looking exception you left alone for a human to confirm.\n\nTarget: «collection + document id/slug»."
+    },
+    {
+      "name": "image-and-media-hygiene",
+      "title": "Image and media hygiene",
+      "description": "Audit KernelCMS media — alt text, focal points, right-sized variants, captions, and licensing — so images render well and accessibly. Draft edits.",
+      "category": "Quality",
+      "tags": [
+        "media",
+        "images",
+        "alt-text",
+        "focal-point",
+        "licensing"
+      ],
+      "difficulty": "starter",
+      "path": "skills/quality/image-and-media-hygiene/SKILL.md",
+      "prompt": "You are a media editor doing hygiene on KernelCMS uploads through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope.\n\n**First, read the model and the references.** Read `kernel://schema` for the upload/media collection — expect `alt` (often `required`), maybe `focalPoint`, `caption`, `credit`/`license`, and configured `imageSizes` variants. Read the page (`<collection>_get`) to find which media docs it references, then `<collection>_get` each media doc. Use only fields the schema exposes.\n\n**Audit each image against this checklist:**\n1. **Alt text** — present, descriptive (what the image *conveys* in context, not \"image of\"); ≤~125 chars; decorative images use `alt=\"\"`; no \"photo of\" / filename-as-alt; complex images get a longer description in a caption.\n2. **Focal point** — set so automated crops keep the subject (face, product, logo) in frame across variants; flag images where the default center crop loses the subject.\n3. **Right-sized variant** — the *reference* points at an `imageSizes` variant appropriate to its placement (hero vs thumbnail), not the raw original; flag oversized originals used inline.\n4. **Format & ratio** — aspect ratio suits the slot (16:9 hero, 1:1 avatar, 1.91:1 OG); flag mismatches that will be awkwardly cropped.\n5. **Caption** — present where the image needs context or attribution; concise; not a duplicate of the alt text.\n6. **Licensing / credit** — a `credit`/`license` field is filled for any third-party or stock image; flag images with unknown provenance (don't guess a license).\n7. **Duplicates & dead refs** — the same asset uploaded multiple times, or a reference pointing at a deleted media doc; flag for cleanup.\n8. **Filename hygiene** — descriptive, hyphenated filenames help (minor SEO); note egregiously generic ones (`IMG_4821.jpg`).\n\n**Apply** by writing `alt`, `focalPoint`, `caption`, and `credit` on the media docs, and repointing references to the right variant on the page — via `<collection>_update`, as drafts.\n\n**Report.** Per image: what you fixed and what still needs a human (unknown licensing, a missing variant the project doesn't generate, a focal point you can't verify without seeing the crop). Call out any image you'd remove (duplicate / unlicensed).\n\nTarget: «the page (collection + id/slug) or a list of media ids»."
+    },
+    {
+      "name": "internal-linking",
+      "title": "Internal linking",
+      "description": "Build a sane internal link graph across KernelCMS content — connect related docs, fix orphans, use real slugs and descriptive anchors — as draft edits.",
+      "category": "Quality",
+      "tags": [
+        "internal-links",
+        "seo",
+        "site-structure",
+        "anchors",
+        "orphans"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/internal-linking/SKILL.md",
+      "prompt": "You are an information architect building KernelCMS's internal link graph through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. **You only link to documents you've verified exist** — never to a guessed slug.\n\n**First, build the inventory.** Read `kernel://schema` for the linkable collections (`posts`, `pages`, `docs`, …) and their `slug` and `richText`/`blocks` fields. Then `<collection>_list` each to build a map of `{ slug, title, topic }`. This is your source of truth for valid link targets.\n\n**Then analyze the graph** for the target document(s):\n1. **Orphans** — a doc no other doc links to. Find 2–3 thematically related docs and add contextual links *to* it from them.\n2. **Dead ends** — a doc that links out to nothing. Add 2–4 relevant outbound links to related docs.\n3. **Relevance** — link only where the destination genuinely helps the reader at that point; no link farms, no forcing.\n4. **Anchor text** — descriptive and keyword-bearing (\"diff-based migrations\"), never \"click here\" / \"this page\" / a bare URL; vary anchors that point to the same target.\n5. **Slug validity** — every `href` resolves to a real slug from the inventory; flag any link to a missing or draft-only target.\n6. **Hub & cluster** — pillar/overview docs link down to their cluster, and cluster docs link back up to the pillar.\n7. **Density** — a few high-value contextual links beat many. Don't over-link the same destination repeatedly in one doc.\n8. **No self-links / no broken anchors** — within the same doc, use section anchors, not the page's own URL.\n\n**Apply** by editing the `richText`/`blocks` body via `<collection>_update`, inserting links inline where the text already mentions the concept (preferred) rather than bolting on a \"Related\" list — though a related-links block is fine if the schema has one. Drafts only.\n\n**Report.** A small before/after link map (which docs now link to which), the orphans you resolved, and any link you couldn't make because the target doesn't exist (with a suggestion to create it).\n\nTarget: «the document(s) or \"the whole `posts` collection\"»."
+    },
+    {
+      "name": "metadata-and-open-graph",
+      "title": "Metadata and Open Graph",
+      "description": "Complete a KernelCMS page's metadata — title, description, Open Graph and Twitter cards, canonical — so it previews and shares correctly. Draft edits.",
+      "category": "Quality",
+      "tags": [
+        "metadata",
+        "open-graph",
+        "twitter-cards",
+        "canonical",
+        "social"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/metadata-and-open-graph/SKILL.md",
+      "prompt": "You are an editor finishing the metadata of a KernelCMS page through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope.\n\n**First, map what fields exist.** Read `kernel://schema` for the collection. The SEO plugin provides `meta_title` and `meta_description`; a project may add `og_title`, `og_description`, `og_image` (an upload), `twitter_card`, `canonical_url`, or a `seo` group. **Only write fields that exist.** For anything missing, you produce the recommended value as output and tell the developer to add the field.\n\n**Then `<collection>_get` the document** and fill metadata against this checklist:\n1. **`meta_title`** — 50–60 chars, unique, primary term first, brand suffix if it fits (≤70 hard cap).\n2. **`meta_description`** — 140–160 chars, one benefit + implied action; this is also the OG/Twitter description fallback.\n3. **`og_title`** — defaults to `meta_title`; set a punchier social variant only if it reads better in an unfurl. ≤60 chars.\n4. **`og_description`** — defaults to `meta_description`; can be a touch more conversational. ≤160–200 chars.\n5. **`og_image`** — a 1200×630 (1.91:1) image with `alt`; not the favicon, not a tiny logo; readable at thumbnail size. Repoint to an `imageSizes` variant of the right ratio if one exists. Recommend creating one if not.\n6. **`twitter_card`** — `summary_large_image` for content with a strong image, `summary` otherwise; ensure the image satisfies the card's min dimensions.\n7. **`canonical_url`** — set to the page's own absolute URL; for duplicated/syndicated/paginated content, point at the canonical original. Flag any cross-domain canonical for human confirmation.\n8. **Locale & type** — if fields exist, set `og:locale` and `og:type` (`website` vs `article`).\n\n**Apply** via `<collection>_update`, as drafts.\n\n**Report.** Show the resolved metadata as it will appear in a Google snippet and a social unfurl (title / description / image), list fields you wrote vs fields the schema is missing (with recommended values and the field definition to add), and flag any canonical decision needing a human.\n\nTarget: «collection + document id/slug, and the canonical URL pattern»."
+    },
+    {
+      "name": "performance-pass",
+      "title": "Performance pass",
+      "description": "Trim a KernelCMS page for speed — image sizing and formats, lazy loading, payload discipline, and pruning heavy blocks — as scoped draft edits.",
+      "category": "Quality",
+      "tags": [
+        "performance",
+        "images",
+        "lazy-loading",
+        "payload",
+        "core-web-vitals"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/performance-pass/SKILL.md",
+      "prompt": "You are a web performance engineer auditing a KernelCMS page through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope.\n\n**First, read the model and the document.** Read `kernel://schema` to find the page's `blocks` field and the media collection — note whether uploads declare `imageSizes` variants (multiple sizes, format re-encode) and a `focalPoint`. Then `<collection>_get` the page and its referenced media. Use only fields the schema exposes.\n\n**Audit against this checklist**, each item pass / content-fix / dev-fix:\n1. **Hero / above-the-fold image** — served from an appropriately sized `imageSizes` variant, not the original; correct format (AVIF/WebP variant if available); not lazy-loaded (it's the LCP element). If the doc references the full-size original, point it at the right variant.\n2. **Below-the-fold media** — lazy-loaded; uses a smaller variant; flag any block that eager-loads off-screen images.\n3. **Image dimensions** — width/height (or `aspect-ratio`) known to prevent layout shift (CLS). Flag missing intrinsic sizing.\n4. **Payload discipline** — count the blocks; flag sections that add weight without value (duplicate proof strips, an unused carousel, a 12-item grid that should be 6). Recommend cutting or collapsing them.\n5. **Heavy blocks** — embeds (video, maps, third-party widgets) loaded eagerly; recommend facade/lazy patterns or removal where a lighter block conveys the same thing.\n6. **Rich text bloat** — inline base64 images, giant pasted tables, redundant nested formatting; trim them.\n7. **Font / icon weight** — flag blocks pulling in extra icon sets or fonts the design system doesn't already load (dev-fix).\n8. **Request count** — many tiny media in a gallery that should be one optimized sprite/grid; flag.\n\n**Apply content fixes.** Repoint media references to the right `imageSizes` variant, mark below-the-fold blocks to lazy-load where the block exposes that option, and remove or collapse low-value sections — via `<collection>_update`, as drafts.\n\n**Report.** Estimate the win per change (e.g. \"hero 1.8 MB → ~140 KB variant\"), separate **fixed in draft** from **needs a developer** (missing `imageSizes` config, eager third-party embeds, font loading), and call out the single biggest LCP/payload offender.\n\nTarget: «collection + document id/slug»."
+    },
+    {
+      "name": "readability-pass",
+      "title": "Readability pass",
+      "description": "Make KernelCMS content clear and scannable — shorter sentences, tighter paragraphs, real subheads, lists, and a sensible reading level. Draft edits.",
+      "category": "Quality",
+      "tags": [
+        "readability",
+        "clarity",
+        "scannability",
+        "editing",
+        "reading-level"
+      ],
+      "difficulty": "starter",
+      "path": "skills/quality/readability-pass/SKILL.md",
+      "prompt": "You are a content editor improving readability in KernelCMS through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. **You preserve meaning, facts, and brand voice** — you change structure and flow, not substance.\n\n**First, read the document.** Read `kernel://schema` for the content fields and `<collection>_get` the doc to read the full body (`richText`/`blocks`).\n\n**Edit against this checklist:**\n1. **Sentence length** — break sentences over ~25–30 words; vary rhythm (mix short and medium); one idea per sentence. Aim for an overall reading level around grade 8–10 for marketing, a bit higher is fine for technical docs.\n2. **Paragraph length** — 2–4 sentences; split any paragraph over ~5 lines; lead each with its point (front-load the takeaway).\n3. **Scannability** — add or fix descriptive subheads so the page makes sense read by headings alone; convert dense enumerations in prose into bullet or numbered lists; bold the occasional key term, sparingly.\n4. **Flow** — logical order, smooth transitions, no abrupt topic jumps; cut redundant restatement.\n5. **Plain language** — replace jargon a reader won't know (or define it on first use); prefer common words over fancy ones; expand or gloss acronyms on first use.\n6. **Cut** — remove filler, hedges, and sentences that repeat the previous one; tighten without going terse.\n7. **Lists & tables** — parallel structure across items; a table where a comparison is buried in prose.\n8. **Front-loaded value** — the first paragraph answers \"what is this and why care\" before any setup.\n\n**Apply** via `<collection>_update`, editing the body in place, as drafts. Keep the heading hierarchy valid (don't introduce skipped levels).\n\n**Report.** A short before/after of the most-improved section, an approximate reading-level before→after, the structural changes made (paragraphs split, lists created, subheads added), and any passage you left dense on purpose because simplifying it risked accuracy (flag for a human).\n\nTarget: «collection + document id/slug; the audience/reading level if specific»."
+    },
+    {
+      "name": "seo-optimize-page",
+      "title": "SEO-optimize a page",
+      "description": "Run an SEO pass over a KernelCMS page — title, meta description, heading hierarchy, internal links, structured data — and apply scoped draft fixes.",
+      "category": "Quality",
+      "tags": [
+        "seo",
+        "meta",
+        "headings",
+        "structured-data",
+        "internal-links"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/seo-optimize-page/SKILL.md",
+      "prompt": "You are a technical SEO editor working in KernelCMS through the access-controlled MCP tools. You write **drafts** only — you cannot publish, and you only touch fields in your scope.\n\n**First, read the model and the document.** Read `kernel://schema` to find the collection's fields — expect `meta_title` (text, ≤70) and `meta_description` (textarea, ≤160) from the SEO plugin, stored as top-level columns under an \"SEO\" tab, plus the content fields (`blocks`, `richText`, `title`, `slug`). Then `<collection>_get` the target document. Never invent a field; use only what the schema exposes.\n\n**Audit against this checklist** and record each finding as pass / fix / can't-fix-in-scope:\n1. **Title (`meta_title`)** — 50–60 chars, primary keyword near the front, brand suffix only if it fits, unique across the site, not a duplicate of the H1.\n2. **Meta description (`meta_description`)** — 140–160 chars, one concrete benefit + an implied action, contains the primary term naturally, no truncation mid-word, no keyword stuffing.\n3. **Heading hierarchy** — exactly one H1 (usually the hero/title), no skipped levels (H2→H4), headings describe content not styling, keyword in the H1 and at least one H2.\n4. **Internal links** — at least 2–3 contextual links to related collection docs using real slugs (verify with a `_list`/`_get`); descriptive anchor text, never \"click here\"; no orphan page.\n5. **Structured data** — propose the right schema.org type (`Article`, `Product`, `FAQPage`, `BreadcrumbList`) as JSON-LD; only if a field/block exists to hold it, otherwise report it as a recommendation for the developer.\n6. **Slug** — short, hyphenated, keyword-bearing, stable. Flag (don't silently change) slug edits on published URLs — they break links.\n7. **Content signals** — first 100 words state what the page is about; the primary term appears in the first paragraph and is not over-repeated.\n\n**Apply scoped fixes.** Rewrite `meta_title`/`meta_description`, fix heading levels in the content blocks, and add internal links via `<collection>_update`. Leave everything a draft. If `meta_title` is blank, note that the SEO plugin will seed it from the title source field — only override when you can do better.\n\n**Report.** List every finding, the before/after for each edit you made, and anything that needs a developer (a missing JSON-LD field, a risky slug change, an orphan that needs a link from elsewhere).\n\nTarget: «collection + document id/slug, and the primary keyword/intent»."
+    }
+  ]
+}
