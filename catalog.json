@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 63,
+  "count": 64,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -414,6 +414,23 @@
       "difficulty": "intermediate",
       "path": "skills/content-modeling/schema-from-brief/SKILL.md",
       "prompt": "You are a content architect turning a plain-English brief into a KernelCMS model as config-as-code with `defineConfig`. Produce a single `kernel.config.ts` using only real field types and options — never invent any.\n\n**Available field types:** `text`, `textarea`, `email`, `slug`, `code`, `number`, `boolean`, `checkbox`, `date`, `select`, `radio`, `json`, `point`, `richText`, `group`, `array`, `blocks`, `relationship`, `upload`; the virtual `join`; and presentational `row`/`tabs`/`ui`. Collections may set `versions`, `upload`, `auth`, `access`, `hooks`, `admin`, `search`, `cache`. Relationship/upload fields take `relationTo` (string or string[]), `hasMany`, `onDelete: 'setNull' | 'cascade' | 'restrict'`.\n\n**Apply these mapping rules:**\n1. **Nouns → collections.** Each distinct entity the brief talks about as a \"thing with many instances\" is a collection. A single editable thing (site settings, homepage, nav) is a **global**.\n2. **Reusable / queryable categories → their own collection** (they get pages, get renamed, are filtered on). **Closed, fixed vocabularies → a `select` with `options`** (no pages, no table). When unsure, ask: \"does this need its own URL or admin list?\" Yes → collection; no → select.\n3. **\"Has a\" / \"belongs to\" → `relationship`.** \"Has many\" → `hasMany: true`. \"Can point at several kinds\" → polymorphic `relationTo: ['a','b']`. \"List the children of X\" → a **`join`** on the parent (virtual, reverse). Choose `onDelete` deliberately: `setNull` (keep the doc, drop the link), `cascade` (delete dependents that can't exist alone), `restrict` (block deletion while referenced).\n4. **Field types by data shape:** short label → `text`; long prose → `richText`; one-line summary → `textarea`; a date → `date`; money → `number integer:true` (minor units); a fixed choice → `select`; a yes/no → `boolean`; coordinates → `point`; a file/image → `upload`; structured-but-freeform → `json`; a repeated uniform row → `array`; a varied page layout → `blocks`.\n5. **Lifecycle verbs.** \"Draft / publish / schedule / preview\" → `versions: { drafts: true }` and `access.publish`. \"Keep history / audit / restore\" → `versions: true`. \"Sign in / accounts\" → `auth: true` on a users collection. Note: with drafts on, reads are published-only unless a caller passes `draft: true`, so public `access.read` doesn't need a `_status` filter — drafts hide themselves.\n6. **Access.** Public-facing reads → `access: { read: () => true }`. Everything else is deny-by-default; add explicit rules. Per-user ownership → a row-level `Where` (`{ owner: { equals: req.user?.id } }`).\n7. **Localized?** If the brief mentions multiple languages, add `localization` and mark translatable fields `localized: true`.\n\n**Process:** restate the brief's entities and relationships in one short list, flag any ambiguity (ask, don't guess), then emit the full config. End with a rationale and the open questions a human should confirm."
+    },
+    {
+      "name": "ship-a-content-release",
+      "title": "Ship a content release",
+      "description": "Stage a coordinated set of draft changes into a named KernelCMS release and publish them atomically (or on a schedule) — with an all-or-nothing pre-flight so a launch never ships half-broken.",
+      "category": "Content modeling",
+      "tags": [
+        "releases",
+        "publishing",
+        "launch",
+        "campaign",
+        "atomic",
+        "scheduled"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/ship-a-content-release/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook. (Enable it once with `releases: true` in your config.)\n\n### 1. Create a release and stage your drafts\n\n```ts\nconst release = await kernel.createRelease({ name: 'Spring launch' })\nawait kernel.addToRelease({ release: release.id, collection: 'pages', id: landingId })\nawait kernel.addToRelease({ release: release.id, collection: 'articles', id: postId })\nawait kernel.addToRelease({ release: release.id, collection: 'globals', id: pricingId })\n```\n\nMembers are draft documents. You can only add docs you can read, and only to an `open` release. Over REST: `POST /api/_admin/releases` then `POST /api/_admin/releases/:id/items`.\n\n### 2. Preview the whole bundle\n\n```ts\nconst { items } = await kernel.previewRelease({ release: release.id })\n// each item is the member in its draft state — review the launch as it WILL look\n```\n\n### 3. Publish it — atomically\n\n```ts\nconst result = await kernel.publishRelease({ release: release.id })\n// { status: 'published', published: [...], failed: [] }\n```\n\nBefore anything goes live, the release **dry-runs the publish gate for every member**: per-document publish access, the agent draft-only brake, and your blocking content-CI evals against the current drafts. If *any* member would fail, **none** are published — you get `failed` with the reasons and the release stays `open`. A launch never ships half-broken. Over REST: `POST /api/_admin/releases/:id/publish`.\n\n### 4. Or schedule it\n\n```ts\nawait kernel.scheduleRelease({ release: release.id, at: '2026-07-01T09:00:00Z' })\n```\n\nA cron drain publishes it when due — add `kernel.processScheduledReleases()` next to `processScheduledPublishes()` in your `kernel jobs:run` (or scheduled task). Publishability is gate-checked at schedule time, and the eval gate is re-checked on the drain.\n\n### 5. Trust the boundaries\n\nPublishing a release uses the **exact same per-document publish gate** as a direct publish — you can only publish a release whose every member you could publish yourself, an agent can never publish a release, and you can't pull a document you can't read into one. The all-or-nothing pre-flight prevents a partial go-live (a mid-publish infrastructure fault marks the release `failed` and reports exactly which members went live).\n\nProvide: «the launch/campaign, the documents that must ship together, and whether to publish now or schedule it»."
     },
     {
       "name": "from-contentful",
