@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 57,
+  "count": 58,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -11,6 +11,23 @@
     "Retrieval & AI"
   ],
   "skills": [
+    {
+      "name": "build-an-autonomous-workflow",
+      "title": "Build an autonomous workflow",
+      "description": "Define a KernelCMS agentic workflow — an autonomous content pipeline (trigger → draft → quality gate → human review) where every step runs as a scoped, draft-only agent and nothing can go live unchecked.",
+      "category": "Agent workflows",
+      "tags": [
+        "workflows",
+        "agentic",
+        "automation",
+        "pipeline",
+        "eval-gate",
+        "review"
+      ],
+      "difficulty": "advanced",
+      "path": "skills/agent-workflows/build-an-autonomous-workflow/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Have a scoped agent\n\nA workflow runs its steps **as** one of your configured agents — so it inherits that agent's `fieldScope` and the hard draft-only brake. (See the *connect-an-agent* skill.)\n\n```ts\nagents: [\n  { id: 'editor-bot', token: process.env.EDITOR_BOT_TOKEN!, roles: ['editor'], fieldScope: { allow: ['title', 'summary', 'body'] } },\n]\n```\n\n### 2. Define the workflow\n\n```ts\n// Steps share state through a closure variable (they're defined together).\nlet draftId = ''\n\nworkflows: [\n  {\n    slug: 'draft_from_brief',          // snake_case\n    agent: 'editor-bot',                // steps run as this scoped, draft-only principal\n    trigger: { on: 'create', collection: 'briefs' },  // or { on: 'manual' }\n    steps: [\n      {\n        name: 'draft',\n        async run(ctx) {\n          const brief = ctx.input as { topic: string }\n          // ctx.kernel is pinned to editor-bot — it CANNOT publish or override access.\n          const post = await ctx.kernel.create({\n            collection: 'articles',\n            data: { title: brief.topic, body: /* your LLM call here */ '' },\n          })\n          ctx.log(`drafted ${post.id}`)\n          draftId = post.id\n        },\n      },\n      {\n        name: 'quality-gate',\n        async run(ctx) {\n          // Runs your configured `evals` (brand/policy/SEO/a11y). Throws → run fails,\n          // content stays a draft. This is content CI for autonomous output.\n          await ctx.evalGate({ collection: 'articles', id: draftId })\n        },\n      },\n      {\n        name: 'to-human',\n        async run(ctx) {\n          // Submits to the review inbox and pauses the run as `awaiting_review`.\n          // It goes live ONLY when an editor approves.\n          await ctx.requestReview({ collection: 'articles', id: draftId }, 'Drafted from a brief — please review.')\n        },\n      },\n    ],\n  },\n]\n```\n\n### 3. The actual AI lives inside a step\n\nKernelCMS provides the orchestration + guardrails; the generation is yours. Inside `run(ctx)` call your LLM (or compose blocks via `ctx.kernel.composePage(...)`), then write the result with `ctx.kernel.create/update`. Everything you write is a draft, field-scoped, and attributed to the agent.\n\n### 4. Run it\n\n- **Triggered** (`on: 'create'|'update'`): a matching write enqueues a **durable** run on the jobs queue. Drain it with a cron: `npx kernel jobs:run` (or `kernel.runDueJobs()`). The content write never blocks on a slow agent step.\n- **Manual:** `await kernel.runWorkflow({ slug: 'draft_from_brief', input })`, or `POST /api/_admin/workflows/draft_from_brief/run` (admin/editor only).\n- Inspect runs: `kernel.workflowRuns({ slug, status })` or `GET /api/_admin/workflow-runs`. States: `pending → running → completed | failed | awaiting_review`.\n\n### 5. Trust the guardrails\n\nEvery step runs as the scoped agent: it **cannot publish** (draft-only brake), **cannot write outside `fieldScope`**, and **cannot pass `overrideAccess`** or a forged principal — the engine pins the agent on every call. Content advances only through `evalGate` (a passing quality check) and `requestReview` → a human approving in the inbox. A self-triggering loop (an agent writing into its own trigger collection) is automatically suppressed. So you can let it run unattended.\n\nProvide: «the trigger (collection + create/update, or manual), what each step should do, which agent/scope it runs as, and your quality-gate evals»."
+    },
     {
       "name": "bulk-draft-content",
       "title": "Bulk-draft content",
