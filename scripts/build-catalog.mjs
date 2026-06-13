@@ -78,6 +78,10 @@ const skills = walk(SKILLS)
       difficulty: meta.difficulty || 'intermediate',
       path: rel,
       prompt,
+      // Optional brand metadata (migration skills) — drives the colorful logo cards.
+      ...(meta.brand ? { brand: meta.brand } : {}),
+      ...(meta.color ? { color: meta.color } : {}),
+      ...(meta.logo ? { logo: meta.logo } : {}),
     }
   })
   .sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title))
