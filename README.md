@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 KernelCMS Skills
+# KernelCMS Skills
 
 ### A knowledge base of agent skills & prompts for building beautiful, production-grade products on [KernelCMS](https://kernelcms.com).
 
@@ -17,10 +17,10 @@
   <img alt="zero deps" src="https://img.shields.io/badge/dependencies-0-059669" />
 </p>
 
-<strong><a href="#-start-here-the-orchestrator">Start here</a></strong> ·
-<a href="#-the-library">The library</a> ·
-<a href="#-three-ways-to-use-a-skill">How to use</a> ·
-<a href="#-anatomy-of-a-skill">Anatomy</a> ·
+<strong><a href="#start-here-the-orchestrator">Start here</a></strong> ·
+<a href="#the-library">The library</a> ·
+<a href="#three-ways-to-use-a-skill">How to use</a> ·
+<a href="#anatomy-of-a-skill">Anatomy</a> ·
 <a href="https://github.com/RobbinPilhede/KernelCMS">KernelCMS</a>
 
 </div>
@@ -33,7 +33,7 @@ KernelCMS lets you hand an AI agent your CMS over the [Model Context Protocol](h
 
 <br />
 
-## ⚡ Start here: the orchestrator
+## Start here: the orchestrator
 
 Don't want to pick a skill by hand? **Just describe the goal.** The [`/kernel`](./skills/orchestrator/kernel/SKILL.md) orchestrator reads your content model, classifies the work, picks and **sequences** the right skills, and runs them — as drafts.
 
@@ -62,21 +62,21 @@ It plans the smallest chain that serves the goal, carries context between steps,
 
 <br />
 
-## 📚 The library
+## The library
 
 **49 skills across 5 categories.** Browse the always-current catalog at **[kernelcms.com/prompts](https://kernelcms.com/prompts)**, or dive into [`skills/`](./skills).
 
 | Category | Count | What it teaches an agent | Highlights |
 | :-- | :--: | :-- | :-- |
-| **🧭 [Orchestrator](./skills/orchestrator)** | 1 | Route any goal to the right skills, in order | [`kernel`](./skills/orchestrator/kernel/SKILL.md) |
-| **🎨 [Page design](./skills/page-design)** | 16 | Compose beautiful pages & sections from your blocks page-builder | [`design-landing-page`](./skills/page-design/design-landing-page/SKILL.md) · [`hero-section`](./skills/page-design/hero-section/SKILL.md) · [`pricing-section`](./skills/page-design/pricing-section/SKILL.md) · [`bento-grid`](./skills/page-design/bento-grid/SKILL.md) |
-| **🗂️ [Content modeling](./skills/content-modeling)** | 12 | Design typed content models from a brief — collections, fields, blocks | [`schema-from-brief`](./skills/content-modeling/schema-from-brief/SKILL.md) · [`model-a-blog`](./skills/content-modeling/model-a-blog/SKILL.md) · [`design-a-block-library`](./skills/content-modeling/design-a-block-library/SKILL.md) |
-| **🤖 [Agent workflows](./skills/agent-workflows)** | 10 | Connect, scope, and drive agents over MCP | [`connect-an-agent`](./skills/agent-workflows/connect-an-agent/SKILL.md) · [`bulk-draft-content`](./skills/agent-workflows/bulk-draft-content/SKILL.md) · [`migrate-content-from-another-cms`](./skills/agent-workflows/migrate-content-from-another-cms/SKILL.md) |
-| **✨ [Quality](./skills/quality)** | 10 | SEO, accessibility, performance, copy, design-system passes | [`seo-optimize-page`](./skills/quality/seo-optimize-page/SKILL.md) · [`accessibility-pass`](./skills/quality/accessibility-pass/SKILL.md) · [`conversion-audit`](./skills/quality/conversion-audit/SKILL.md) |
+| **[Orchestrator](./skills/orchestrator)** | 1 | Route any goal to the right skills, in order | [`kernel`](./skills/orchestrator/kernel/SKILL.md) |
+| **[Page design](./skills/page-design)** | 16 | Compose beautiful pages & sections from your blocks page-builder | [`design-landing-page`](./skills/page-design/design-landing-page/SKILL.md) · [`hero-section`](./skills/page-design/hero-section/SKILL.md) · [`pricing-section`](./skills/page-design/pricing-section/SKILL.md) · [`bento-grid`](./skills/page-design/bento-grid/SKILL.md) |
+| **[Content modeling](./skills/content-modeling)** | 12 | Design typed content models from a brief — collections, fields, blocks | [`schema-from-brief`](./skills/content-modeling/schema-from-brief/SKILL.md) · [`model-a-blog`](./skills/content-modeling/model-a-blog/SKILL.md) · [`design-a-block-library`](./skills/content-modeling/design-a-block-library/SKILL.md) |
+| **[Agent workflows](./skills/agent-workflows)** | 10 | Connect, scope, and drive agents over MCP | [`connect-an-agent`](./skills/agent-workflows/connect-an-agent/SKILL.md) · [`bulk-draft-content`](./skills/agent-workflows/bulk-draft-content/SKILL.md) · [`migrate-content-from-another-cms`](./skills/agent-workflows/migrate-content-from-another-cms/SKILL.md) |
+| **[Quality](./skills/quality)** | 10 | SEO, accessibility, performance, copy, design-system passes | [`seo-optimize-page`](./skills/quality/seo-optimize-page/SKILL.md) · [`accessibility-pass`](./skills/quality/accessibility-pass/SKILL.md) · [`conversion-audit`](./skills/quality/conversion-audit/SKILL.md) |
 
 <br />
 
-## 🚀 Three ways to use a skill
+## Three ways to use a skill
 
 Every `SKILL.md` works three ways — pick whatever fits your tool:
 
@@ -123,7 +123,7 @@ npx kernel mcp --agent content-bot
 
 <br />
 
-## 🧱 Anatomy of a skill
+## Anatomy of a skill
 
 ```markdown
 ---
@@ -152,13 +152,13 @@ The [`catalog.json`](./catalog.json) index and the [website library](https://ker
 
 <br />
 
-## 🛡️ Safety
+## Safety
 
 These skills drive agents that operate through KernelCMS's access pipeline. An agent is **field-scoped** and **draft-only** by design — it composes and edits drafts, but a human publishes. Nothing in a prompt can change that; the guarantees live in `@kernel/core`, not in the words. See the [MCP guide](https://kernelcms.com/mcp) and [Safety](https://kernelcms.com/safety).
 
 <br />
 
-## 🤝 Contributing
+## Contributing
 
 Add a skill, a whole category, or sharpen an existing one — a great PR is just a new `SKILL.md`. See **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
 
