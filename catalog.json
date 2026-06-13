@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 61,
+  "count": 62,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -366,6 +366,22 @@
       "difficulty": "intermediate",
       "path": "skills/content-modeling/model-events-or-listings/SKILL.md",
       "prompt": "You are modeling events/listings in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, **`point`** (a geo coordinate stored as a `[number, number]` pair), and the `join`.\n\n**Model it like this:**\n1. **Identity:** `title` (text, required), `slug` (slug, unique, index), `summary` (textarea), `description` (richText), `image` (upload → media).\n2. **Time:** `starts_at` (date, required, **`index: true`** — you sort and filter on it constantly), `ends_at` (date). For recurring/multi-session, an `array` of `{ starts_at, ends_at }`. Add a **stored computed `sort_key`** so listings sort cheaply and deterministically:\n```ts\n{ name: 'sort_key', type: 'number', index: true,\n  compute: ({ doc }) => new Date(doc.starts_at).getTime() } // stored, sortable/filterable\n```\nA *stored* compute (no `virtual`) is persisted at write time, so it's a real indexed column you can sort and filter on — unlike a virtual field. Add a virtual `is_past` (`type: 'boolean', virtual: true`) for display.\n3. **Location:** a `location` `group` with `venue` (text), `address` (text), `city` (text, index — filtered on), and `coordinates` (**`point`**) for map display and proximity. For online events add `mode` (select: `in_person` | `online` | `hybrid`) and a `url`.\n4. **Filtering fields — make filters cheap.** Anything users filter by gets `index: true` and a constrained type: `category`/`type` (select), `city` (text, index), `price` (number, integer cents — or a `free` boolean), `starts_at`/`sort_key` (index). Filterable enums are `select`s, not free text.\n5. **Organizer / host:** a `relationship` (→ `organizers` or `users`, `onDelete: 'setNull'`).\n\n**Drafts.** `versions: { drafts: true }` so events are staged and previewed before going live.\n\n**Access.** Public reads; writes auth-only.\n\n**Admin.** `useAsTitle: 'title'`, `defaultColumns: ['title', 'starts_at', 'city']`, `defaultSort: 'sort_key'` (upcoming-first if you negate, or filter `starts_at >= now`).\n\nOutput the config, then justify: indexing `starts_at`, the stored `sort_key` (vs. virtual), the `point` location, and which fields you indexed for filtering and why."
+    },
+    {
+      "name": "personalize-and-ab-test-content",
+      "title": "Personalize and A/B test content",
+      "description": "Serve audience-targeted content variants and run A/B experiments in KernelCMS — mark fields personalized, write per-segment variants, and bucket visitors deterministically, all access-checked and PII-free.",
+      "category": "Content modeling",
+      "tags": [
+        "personalization",
+        "ab-testing",
+        "experiments",
+        "audiences",
+        "variants"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/personalize-and-ab-test-content/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Declare your audiences and personalize fields\n\n```ts\nexport default defineConfig({\n  audiences: { segments: ['default', 'vip', 'beta'], default: 'default' },\n  collections: [\n    {\n      slug: 'pages',\n      fields: [\n        { name: 'title', type: 'text' },\n        { name: 'hero_headline', type: 'text', personalized: true }, // one variant per segment\n      ],\n    },\n  ],\n})\n```\n\nA `personalized` field stores `{ [segment]: value }` — exactly like a `localized` field stores per-locale values. (A field can be `localized` **or** `personalized`, not both.)\n\n### 2. Write and read variants\n\nTarget a segment with `?audience=` (or `req.audience`). Writing one segment **merges** — it never clobbers the others.\n\n```bash\n# default variant\ncurl -XPOST $BASE/api/pages -H \"$AUTH\" -d '{\"title\":\"Home\",\"hero_headline\":\"Welcome\"}'\n# vip variant of the same field\ncurl -XPATCH \"$BASE/api/pages/ID?audience=vip\" -H \"$AUTH\" -d '{\"hero_headline\":\"Welcome back, VIP\"}'\n\n# reads resolve to the audience (unknown audience → default segment)\ncurl \"$BASE/api/pages/ID?audience=vip\"      # → \"Welcome back, VIP\"\ncurl \"$BASE/api/pages/ID?audience=default\"  # → \"Welcome\"\n```\n\n### 3. Run an A/B experiment\n\n```ts\nexperiments: [{ slug: 'hero', variants: ['default', 'vip'], weights: [50, 50] }]\n```\n\nBucket each visitor deterministically by a stable key (a session id, a logged-in user id):\n\n```ts\nconst { variant } = await kernel.assignVariant({ experiment: 'hero', key: visitorId })\n// same visitorId → same variant, always; distribution matches weights.\n```\n\nThe `variant` **is a segment** — set it as the request audience (`?audience=${variant}`) and the visitor sees that variant's personalized content. Over REST: `GET /api/_experiments/hero/assign?key=<visitorId>`. Only a hash of the key is ever stored — no raw visitor id, no PII.\n\n### 4. Let an agent author the variants\n\nPair this with [agentic workflows](#/prompts): an agent can draft a `vip` or `beta` variant of a field (scoped + draft-only), a human approves it, and it goes live for that audience only.\n\n### 5. Trust the boundaries\n\nA personalized field still passes field-level read access (a read-denied variant is stripped for every audience). An untrusted `?audience=` is honored only if it's a configured segment (unknown → default), segment keys are guarded against prototype pollution, and per-segment writes never lose other segments.\n\nProvide: «the audiences/segments, which fields vary by audience, and any A/B experiments (variants + weights)»."
     },
     {
       "name": "relationships-and-joins",
