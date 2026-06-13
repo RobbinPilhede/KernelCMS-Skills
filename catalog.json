@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 60,
+  "count": 61,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -941,6 +941,23 @@
       "difficulty": "intermediate",
       "path": "skills/quality/seo-optimize-page/SKILL.md",
       "prompt": "You are a technical SEO editor working in KernelCMS through the access-controlled MCP tools. You write **drafts** only — you cannot publish, and you only touch fields in your scope.\n\n**First, read the model and the document.** Read `kernel://schema` to find the collection's fields — expect `meta_title` (text, ≤70) and `meta_description` (textarea, ≤160) from the SEO plugin, stored as top-level columns under an \"SEO\" tab, plus the content fields (`blocks`, `richText`, `title`, `slug`). Then `<collection>_get` the target document. Never invent a field; use only what the schema exposes.\n\n**Audit against this checklist** and record each finding as pass / fix / can't-fix-in-scope:\n1. **Title (`meta_title`)** — 50–60 chars, primary keyword near the front, brand suffix only if it fits, unique across the site, not a duplicate of the H1.\n2. **Meta description (`meta_description`)** — 140–160 chars, one concrete benefit + an implied action, contains the primary term naturally, no truncation mid-word, no keyword stuffing.\n3. **Heading hierarchy** — exactly one H1 (usually the hero/title), no skipped levels (H2→H4), headings describe content not styling, keyword in the H1 and at least one H2.\n4. **Internal links** — at least 2–3 contextual links to related collection docs using real slugs (verify with a `_list`/`_get`); descriptive anchor text, never \"click here\"; no orphan page.\n5. **Structured data** — propose the right schema.org type and its required properties as JSON-LD: `Article` (`headline`, `datePublished`, `author`, `image`), `Product` (`name`, `image`, `offers.price` + `priceCurrency`), `FAQPage` (`mainEntity[]` of `Question`/`acceptedAnswer`, only for real on-page Q&A), `BreadcrumbList` (ordered `itemListElement`). Every value must come from real document data — never fabricate a date, author, rating, or price. Write it only if a field/block exists to hold raw JSON-LD; otherwise report the exact object as a developer recommendation.\n6. **Slug** — short, hyphenated, keyword-bearing, stable. Flag (don't silently change) slug edits on published URLs — they break links.\n7. **Content signals** — first 100 words state what the page is about; the primary term appears in the first paragraph and is not over-repeated.\n\n**Apply scoped fixes.** Rewrite `meta_title`/`meta_description`, fix heading levels in the content blocks, and add internal links via `<collection>_update`. Leave everything a draft. If `meta_title` is blank and the plugin is configured with `generateTitleFrom`, the `beforeChange` hook seeds it from that source field, truncated to 70 chars — only set an explicit value when you can do better than that raw slice.\n\n**Report.** List every finding, the before/after for each edit you made, and anything that needs a developer (a missing JSON-LD field, a risky slug change, an orphan that needs a link from elsewhere).\n\nTarget: «collection + document id/slug, and the primary keyword/intent»."
+    },
+    {
+      "name": "add-schema-org-jsonld",
+      "title": "Add schema.org JSON-LD",
+      "description": "Emit schema.org JSON-LD from your KernelCMS model so search engines and AI answer engines understand your content — map collections to schema.org types, embed the markup, all access-checked and XSS-safe.",
+      "category": "Retrieval & AI",
+      "tags": [
+        "json-ld",
+        "schema-org",
+        "seo",
+        "geo",
+        "structured-data",
+        "rich-results"
+      ],
+      "difficulty": "starter",
+      "path": "skills/retrieval-ai/add-schema-org-jsonld/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Map collections to schema.org types\n\n```ts\nexport default defineConfig({\n  // …\n  structuredData: {\n    baseUrl: 'https://acme.com',\n    collections: [\n      { slug: 'articles', type: 'Article', urlPattern: '/blog/:slug' },\n      { slug: 'products', type: 'Product', urlPattern: '/shop/:slug' },\n      { slug: 'authors', type: 'Person' },\n    ],\n  },\n})\n```\n\nWith no explicit `mapping`, **smart defaults** do the work: your title → `name`/`headline`, rich-text body → `articleBody` (+ a `description`), publish/updated dates → `datePublished`/`dateModified`, an author relationship → `author`, an image field → `image`. Override any property:\n\n```ts\n{ slug: 'products', type: 'Product', mapping: { name: 'product_name', description: 'tagline', image: 'hero' } }\n```\n\n### 2. Embed it in your pages\n\n```ts\nconst script = await kernel.jsonLdScript({ collection: 'articles', id })\n// → '<script type=\"application/ld+json\">{ \"@context\": \"https://schema.org\", \"@type\": \"Article\", … }</script>'\n```\n\nDrop `script` into your page `<head>`. (It's HTML-escaped, so content can't break out of the tag.) Or fetch the raw object: `kernel.jsonLd({ collection, id })`. Over REST: `GET /api/articles/ID/jsonld` returns `application/ld+json`.\n\n### 3. Validate\n\nPaste a rendered page (or the `/jsonld` output) into Google's [Rich Results Test](https://search.google.com/test/rich-results) or the [schema.org validator](https://validator.schema.org/). Fix field mappings until the type validates with the properties you want surfaced.\n\n### 4. Trust the boundaries\n\nGeneration runs through the same access-checked read as any public request: a **draft, private, or read-denied** document or field is never emitted — anonymous callers get only published, publicly-readable content. The `<script>` embedding is XSS-safe (content can't escape the tag), and `@id`/`image` URLs are injection-safe.\n\n### 5. Pair it with the rest of the discoverability stack\n\nStructured data completes the trio with [semantic search](#/prompts) (your content as a RAG knowledge base) and [llms.txt / GEO](#/prompts) (citable by AI answer engines). Together they make your content fully machine-understandable for both classic search and the AI-answer era.\n\nProvide: «the collections to expose, the schema.org type for each, and any non-default field mappings»."
     },
     {
       "name": "make-content-ai-discoverable",
