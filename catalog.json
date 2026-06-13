@@ -1,13 +1,14 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 55,
+  "count": 56,
   "categories": [
     "Agent workflows",
     "Content modeling",
     "Migrations",
     "Orchestrator",
     "Page design",
-    "Quality"
+    "Quality",
+    "Retrieval & AI"
   ],
   "skills": [
     {
@@ -889,6 +890,23 @@
       "difficulty": "intermediate",
       "path": "skills/quality/seo-optimize-page/SKILL.md",
       "prompt": "You are a technical SEO editor working in KernelCMS through the access-controlled MCP tools. You write **drafts** only — you cannot publish, and you only touch fields in your scope.\n\n**First, read the model and the document.** Read `kernel://schema` to find the collection's fields — expect `meta_title` (text, ≤70) and `meta_description` (textarea, ≤160) from the SEO plugin, stored as top-level columns under an \"SEO\" tab, plus the content fields (`blocks`, `richText`, `title`, `slug`). Then `<collection>_get` the target document. Never invent a field; use only what the schema exposes.\n\n**Audit against this checklist** and record each finding as pass / fix / can't-fix-in-scope:\n1. **Title (`meta_title`)** — 50–60 chars, primary keyword near the front, brand suffix only if it fits, unique across the site, not a duplicate of the H1.\n2. **Meta description (`meta_description`)** — 140–160 chars, one concrete benefit + an implied action, contains the primary term naturally, no truncation mid-word, no keyword stuffing.\n3. **Heading hierarchy** — exactly one H1 (usually the hero/title), no skipped levels (H2→H4), headings describe content not styling, keyword in the H1 and at least one H2.\n4. **Internal links** — at least 2–3 contextual links to related collection docs using real slugs (verify with a `_list`/`_get`); descriptive anchor text, never \"click here\"; no orphan page.\n5. **Structured data** — propose the right schema.org type and its required properties as JSON-LD: `Article` (`headline`, `datePublished`, `author`, `image`), `Product` (`name`, `image`, `offers.price` + `priceCurrency`), `FAQPage` (`mainEntity[]` of `Question`/`acceptedAnswer`, only for real on-page Q&A), `BreadcrumbList` (ordered `itemListElement`). Every value must come from real document data — never fabricate a date, author, rating, or price. Write it only if a field/block exists to hold raw JSON-LD; otherwise report the exact object as a developer recommendation.\n6. **Slug** — short, hyphenated, keyword-bearing, stable. Flag (don't silently change) slug edits on published URLs — they break links.\n7. **Content signals** — first 100 words state what the page is about; the primary term appears in the first paragraph and is not over-repeated.\n\n**Apply scoped fixes.** Rewrite `meta_title`/`meta_description`, fix heading levels in the content blocks, and add internal links via `<collection>_update`. Leave everything a draft. If `meta_title` is blank and the plugin is configured with `generateTitleFrom`, the `beforeChange` hook seeds it from that source field, truncated to 70 chars — only set an explicit value when you can do better than that raw slice.\n\n**Report.** List every finding, the before/after for each edit you made, and anything that needs a developer (a missing JSON-LD field, a risky slug change, an orphan that needs a link from elsewhere).\n\nTarget: «collection + document id/slug, and the primary keyword/intent»."
+    },
+    {
+      "name": "set-up-semantic-search",
+      "title": "Set up semantic search",
+      "description": "Make your KernelCMS content AI-retrievable — wire a pluggable embedder, mark collections semantic, and query with built-in semantic + hybrid (RRF) search over REST or the Local API. Your CMS becomes your RAG knowledge base.",
+      "category": "Retrieval & AI",
+      "tags": [
+        "rag",
+        "embeddings",
+        "semantic-search",
+        "hybrid",
+        "vector",
+        "ai"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/retrieval-ai/set-up-semantic-search/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Bring an embedder\n\nKernelCMS has no hard embedding dependency — you supply an `embed` function that maps strings to vectors. Use any provider (OpenAI, Cohere, a local model). Source keys from the environment, never hardcode them.\n\n```ts\nimport { defineConfig, memorySearch } from 'kernelcms'\n\nasync function embed(texts: string[]): Promise<number[][]> {\n  const res = await fetch('https://api.openai.com/v1/embeddings', {\n    method: 'POST',\n    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },\n    body: JSON.stringify({ model: 'text-embedding-3-small', input: texts }),\n  })\n  const json = await res.json()\n  return json.data.map((d: { embedding: number[] }) => d.embedding)\n}\n\nexport default defineConfig({\n  // …secret, db, …\n  search: memorySearch(),                 // full-text adapter (powers hybrid's keyword half)\n  embeddings: { embed, dimensions: 1536 }, // the pluggable embedder\n  // …collections\n})\n```\n\nThe built-in `memoryVector()` store is used automatically when `embeddings` is set — great for a single node. (A pgvector-backed `VectorAdapter` is the documented production follow-up; the interface is ready.)\n\n### 2. Mark the collections you want retrievable\n\nOn each collection, list the text fields to index and turn on `semantic`. Those fields are embedded on **every write** — real-time, not a nightly batch (which matters when AI agents read your content).\n\n```ts\n{\n  slug: 'articles',\n  fields: [\n    { name: 'title', type: 'text', required: true },\n    { name: 'summary', type: 'text' },\n    { name: 'body', type: 'richText' },\n  ],\n  search: { fields: ['title', 'summary'], semantic: true },\n}\n```\n\n### 3. Query it\n\n**Local API (server code / agents):**\n\n```ts\nconst byMeaning = await kernel.semanticSearch({ collection: 'articles', query: 'how do I cancel my plan', limit: 5 })\nconst best = await kernel.hybridSearch({ collection: 'articles', query: 'cancel subscription', limit: 5 })\n```\n\n**REST:**\n\n```bash\ncurl \"$BASE/api/articles/semantic?q=how%20do%20I%20cancel%20my%20plan&limit=5\"\ncurl \"$BASE/api/articles/hybrid?q=cancel%20subscription&limit=5\"\n```\n\n- **`semanticSearch`** ranks by vector similarity (meaning). Use it for \"find content like this\" and RAG retrieval.\n- **`hybridSearch`** fuses keyword + vector results with Reciprocal Rank Fusion (RRF) — the 2026-standard retrieval that beats pure-semantic for most site/app search. Prefer it for general search boxes.\n\n### 4. Trust the guarantees\n\n- **Access-checked, always.** Every hit is loaded through the same access-control pipeline as a normal read — a semantic match for a document the caller can't read is dropped, never leaked. Pass `req` (the request principal) so results are scoped to that user.\n- **Resilient.** An embedder that throws is logged (never with your text or key) and never breaks a content write — the doc still saves, it's just not vector-indexed until the next successful write.\n- **Bounded.** `limit` is clamped (max 100); a `filter` is validated against real columns.\n\n### 5. Wire it into RAG\n\nFor a grounded AI answer: `hybridSearch` (or `semanticSearch`) for the top-K passages → pass their content as context to your model → cite the documents. Because KernelCMS also tracks provenance and can sign published content, your retrieved context carries trust metadata for free.\n\nProvide: «the collection(s) to make retrievable, your embedding provider, and whether you're building site search, related-content, or a RAG assistant»."
     }
   ]
 }
