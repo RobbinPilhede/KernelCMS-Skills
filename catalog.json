@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 58,
+  "count": 59,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -891,6 +891,23 @@
       "difficulty": "starter",
       "path": "skills/quality/readability-pass/SKILL.md",
       "prompt": "You are a content editor improving readability in KernelCMS through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. **You preserve meaning, facts, and brand voice** — you change structure and flow, not substance.\n\n**First, read the document.** Read `kernel://schema` for the content fields and `<collection>_get` the doc to read the full body (`richText`/`blocks`).\n\n**Edit against this checklist:**\n1. **Sentence length** — break sentences over ~25–30 words; vary rhythm (mix short and medium); one idea per sentence. Aim for an overall reading level around grade 8–10 for marketing, a bit higher is fine for technical docs.\n2. **Paragraph length** — 2–4 sentences; split any paragraph over ~5 lines; lead each with its point (front-load the takeaway).\n3. **Scannability** — add or fix descriptive subheads so the page makes sense read by headings alone; convert dense enumerations in prose into bullet or numbered lists; bold the occasional key term, sparingly.\n4. **Flow** — logical order, smooth transitions, no abrupt topic jumps; cut redundant restatement.\n5. **Plain language** — replace jargon a reader won't know (or define it on first use); prefer common words over fancy ones; expand or gloss acronyms on first use.\n6. **Cut** — remove filler, hedges, and sentences that repeat the previous one; tighten without going terse.\n7. **Lists & tables** — parallel structure across items; a table where a comparison is buried in prose.\n8. **Front-loaded value** — the first paragraph answers \"what is this and why care\" before any setup.\n\n**Apply** via `<collection>_update`, editing the body in place, as drafts. Keep the heading hierarchy valid (don't introduce skipped levels).\n\n**Report.** A short before/after of the most-improved section, an approximate reading-level before→after, the structural changes made (paragraphs split, lists created, subheads added), and any passage you left dense on purpose because simplifying it risked accuracy (flag for a human).\n\nTarget: «collection + document id/slug; the audience/reading level if specific»."
+    },
+    {
+      "name": "restore-content-with-the-time-machine",
+      "title": "Restore content with the time-machine",
+      "description": "Use the KernelCMS content time-machine to investigate and recover content — read any document as it existed at a past instant, diff two points, and restore a known-good state, all access-checked.",
+      "category": "Quality",
+      "tags": [
+        "time-machine",
+        "versions",
+        "restore",
+        "audit",
+        "recovery",
+        "diff"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/restore-content-with-the-time-machine/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook. (The collection must have `versions` enabled.)\n\n### 1. Read the change timeline\n\n```ts\nconst timeline = await kernel.history({ collection: 'articles', id })\n// → [{ versionId, at, by, byType, status, changedFields }, …]  oldest → newest\n```\n\nEach entry shows **who** changed it, **when**, and **which fields** (`changedFields`) differed from the previous snapshot. Over REST: `GET /api/articles/ID/history`.\n\n### 2. Look at a past state\n\n```ts\nconst lastTuesday = await kernel.findByID({ collection: 'articles', id, asOf: '2026-06-09T09:00:00Z' })\n```\n\n`asOf` reconstructs the document exactly as it existed at that instant (the latest snapshot at or before it). `null` means it didn't exist yet. You can do this for a whole collection too: `kernel.find({ collection: 'articles', asOf })`. Over REST: `GET /api/articles/ID?asOf=<iso>`.\n\n### 3. Diff two points\n\n```ts\nconst changes = await kernel.diffVersions({\n  collection: 'articles',\n  id,\n  from: '2026-06-09T09:00:00Z', // a timestamp OR a versionId\n  to: 'now-version-id',\n})\n// → { title: { from: 'Old', to: 'New' }, body: { from: …, to: … } }\n```\n\nConfirm exactly what changed before you act. Over REST: `GET /api/articles/ID/diff?from=&to=`.\n\n### 4. Restore the good state\n\n```ts\nawait kernel.restoreAsOf({ collection: 'articles', id, asOf: '2026-06-09T09:00:00Z' })\n```\n\nThis rewrites the document's **content** to its as-of state through the normal validated update path — and records a new version, so the restore itself is auditable and reversible. Over REST: `POST /api/articles/ID/restore-as-of?asOf=<iso>`.\n\n### 5. Trust the boundaries\n\n- **Restore is content-only.** `_status` and system columns are never touched — a restore can **never** be a sneaky publish, and if you're an agent the draft-only brake still holds.\n- **No access bypass.** Every historical read, diff, and restore runs the same access check + field redaction as a live read: if you can't read the document now, you can't read its past either; read-denied fields never appear in an `asOf` read or a diff; historical drafts stay hidden unless you pass `draft: true`.\n\nProvide: «the collection + document, the symptom (bad edit / question / audit), and the rough time the content was last good»."
     },
     {
       "name": "seo-optimize-page",
