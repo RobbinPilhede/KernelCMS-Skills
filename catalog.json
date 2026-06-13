@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 59,
+  "count": 60,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -124,6 +124,23 @@
       "difficulty": "advanced",
       "path": "skills/agent-workflows/migrate-content-from-another-cms/SKILL.md",
       "prompt": "You are migrating content into KernelCMS from another CMS, through the access-controlled MCP tools. Everything you create is a **draft** — review happens before any cutover. You can only write fields inside your `fieldScope`.\n\n**1. Learn the target model.** Read `kernel://schema` and the relevant `kernel://collections/<slug>` descriptors. For each target collection, list its fields, types, required fields, and which are in your scope.\n\n**2. Build an explicit field map — and show it before importing.** For each source content type, produce a table: `source field → target field`, with the transform (rename, type coercion, rich-text → the target's body format, asset reference handling, relationship resolution). Flag every source field that has **no** target home and every required target field with **no** source — do not guess. Get the human's sign-off on the map before creating anything.\n\n**3. Import in dependency order.** Create referenced collections first (authors, categories, media records) so relationships can resolve, then the documents that point at them. For each row, call `<collection>_create` with the mapped, validated payload. Preserve the source slug where possible so URLs survive. Keep a source-id → new-id table to wire relationships.\n\n**4. Handle the messy cases explicitly.** Rich text: convert to the target field's format, don't paste raw HTML into a plain-text field. Assets: create the media record / set the reference per the target schema; if you can't fetch a binary, record the source URL and flag it. Dates and enums: coerce to the target types or flag mismatches.\n\n**5. Report.** Output: rows created per collection (with ids), rows skipped/flagged (and why), and the unresolved-mapping list. Tell the human to review the drafts (filter to `createdByType: agent`), spot-check relationships and assets, then publish in the admin. Migration completes when a human publishes — not when you finish creating.\n\nSource: «which CMS, the export format/location, and the content types to migrate»."
+    },
+    {
+      "name": "react-to-content-changes",
+      "title": "React to content changes",
+      "description": "Subscribe to the KernelCMS real-time change feed so an agent, a live UI, or a downstream system reacts the instant content changes — via the durable pull feed, the SSE stream, or in-process subscribe, all access-filtered.",
+      "category": "Agent workflows",
+      "tags": [
+        "realtime",
+        "change-feed",
+        "sse",
+        "cdc",
+        "reactive",
+        "subscribe"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/react-to-content-changes/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Turn it on\n\n```ts\nexport default defineConfig({\n  // …\n  realtime: { enabled: true },   // retain? caps the durable outbox (default 10000)\n})\n```\n\n### 2. Pick how you consume it\n\n**A. Durable pull (CDC / reliable catch-up).** Poll from a cursor — survives downtime, never misses events.\n\n```ts\nlet cursor = 0\nsetInterval(async () => {\n  const { changes, cursor: next } = await kernel.changes({ since: cursor })\n  for (const e of changes) {\n    // e = { seq, at, collection, documentId, event, principalType } — metadata only\n    // re-fetch the doc through the normal access-checked API if you need its content:\n    const doc = await kernel.findByID({ collection: e.collection, id: e.documentId })\n    /* react: re-index, notify, sync… */\n  }\n  cursor = next\n}, 1000)\n```\n\nOver REST: `GET /api/changes?since=<cursor>&collection=articles` (auth required).\n\n**B. Live SSE (reactive UI).** Wire a browser straight to the stream — no polling.\n\n```ts\nconst es = new EventSource('/api/changes/stream?collection=articles', { withCredentials: true })\nes.onmessage = (m) => {\n  const e = JSON.parse(m.data) // { seq, collection, documentId, event, … }\n  // refetch + update the UI\n}\n// Reconnects resume from the last seq via Last-Event-ID automatically.\n```\n\n**C. In-process (server code / workflows).**\n\n```ts\nconst stop = kernel.subscribe((e) => {\n  if (e.collection === 'articles') void reindex(e.documentId)\n})\n// later: stop()\n```\n\n### 3. Common reactions\n\n- **Live RAG re-index:** on a change, re-embed the doc (semantic search already does this on write — use the feed for *external* indexes).\n- **Agent triggers:** pair with [agentic workflows](#/prompts) — a change kicks off a draft/translate/summarize pipeline.\n- **Cache busting / CDN purge, search sync, analytics, audit mirrors.**\n\n### 4. Trust the boundaries\n\nEvents are **metadata only** — never document bodies — and **access-filtered per subscriber**: you are never told that a document you can't read changed (the event is dropped, fail-closed). So a stream scoped to a low-privilege principal is safe to expose. Both HTTP endpoints require auth; retention and concurrent streams are bounded; a feed hiccup can never break the content write that triggered it.\n\nProvide: «what should react (re-index / notify / sync / live UI), which collections, and whether you want pull, SSE, or in-process»."
     },
     {
       "name": "review-agent-drafts",
