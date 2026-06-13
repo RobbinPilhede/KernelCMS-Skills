@@ -50,7 +50,7 @@ All 16 land as **drafts**. Report: the calendar table mapped to ids, plus *"Revi
 
 ## Notes
 
-- **Agents can't schedule.** A scheduled publish (`publishAt`) is a publish — rejected for an agent principal. Record intended dates as ordinary draft fields; a human sets the actual schedule when they publish. This skill plans and drafts; it does not — and cannot — auto-release.
+- **Agents can't schedule.** A scheduled publish (`publishAt`, stored as `_scheduled_at`) is still a publish — it's gated by `access.publish` and rejected for an agent principal. Record intended dates as ordinary draft fields; a human sets the actual schedule when they publish. This skill plans and drafts; it does not — and cannot — auto-release.
 - **Use a real, scoped date field** for `planned_for` (or similar). If your model has none, keep the dates in the report and add the field to the collection + the agent's scope if you want them stored.
 - **Fill gaps, don't duplicate.** `*_list` / `*_count` first so the calendar extends what exists.
 - **Draft-only.** Every slot is reviewable before it's anywhere near live.

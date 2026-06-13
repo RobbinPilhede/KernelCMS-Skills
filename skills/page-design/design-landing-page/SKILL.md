@@ -59,4 +59,5 @@ The agent reads `kernel://schema`, finds the `pages` collection with a `layout` 
 - **Tools:** `kernel://schema` resource for discovery; `<collection>_create` / `<collection>_update` to write the `blocks` field. See the [MCP guide](https://kernelcms.com/mcp).
 - **Blocks are typed.** The agent can only use block types and fields that exist in your config — that's the guardrail that keeps composition on-brand and valid. Add or rename blocks in your `kernel.config.ts`; the agent picks them up from the schema automatically.
 - **Draft-only.** The composed page is a draft. Review it in the admin's live preview and publish when you're happy — the agent cannot.
-- Pair with **`seo-optimize-page`** (Quality) once the structure is right.
+- **Composes the section skills.** Build individual blocks with `hero-section`, `feature-grid`, `pricing-section`, `faq-section`, and `cta-section`; this skill is the arc that orders them.
+- **Pair with** `conversion-audit` to pressure-test the funnel, `seo-optimize-page` once the structure is right, and `accessibility-pass` before a human publishes.

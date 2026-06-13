@@ -58,5 +58,6 @@ The agent reads `kernel://schema`, finds a `pages` collection whose `layout` blo
 
 - **Constraints beat values.** "Here's what we refuse to do" is more credible than any adjective-filled mission statement.
 - **Never invent people.** Team bios, names, and photos must come from the brief — fabricated humans are a trust and legal problem.
-- **Tools:** `kernel://schema` to discover blocks; `<pages>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` to discover blocks; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `copy-voice-and-tone` to keep the story in one voice and `readability-pass` so the prose beats stay tight.
 - **Draft-only.** Review and publish yourself.

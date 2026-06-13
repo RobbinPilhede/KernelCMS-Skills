@@ -56,5 +56,6 @@ The agent reads `kernel://schema`, finds a `comparison` block (`heading`, `colum
 - **Fairness is the strategy.** The fastest way to lose a technical buyer is one cell they know is wrong. Concede the ties; win on the differences that are real.
 - **Specific cells > checkmarks.** "Next.js only" tells the reader more than a red X, and it's harder to dispute.
 - **Verify, don't guess.** If you're unsure whether a competitor supports something, leave the cell out or flag it — don't fabricate a weakness.
-- **Tools:** `kernel://schema` to discover the block and `rows` shape; `<pages>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` to discover the block and `rows` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `pricing-section` (the comparison sets up the tier choice) and `feature-grid` for the strengths you lead on.
 - **Draft-only.** Review and publish yourself.

@@ -69,4 +69,5 @@ The agent reads `kernel://schema`, finds a `header` global (`links[] = { label, 
 - **Nav is editing, footer is listing.** The skill in the header is cutting to 4–6; the skill in the footer is grouping completely. Different jobs.
 - **Mobile.** A short header collapses gracefully into a menu; a ten-item one doesn't. Keep it lean.
 - **Tools:** `kernel://schema` for the global shapes; `<slug>_get_global` / `<slug>_update_global` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `internal-linking` so the footer's link map matches the real site, and `accessibility-pass` to confirm the mobile menu and focus order hold up.
 - **Draft-only.** Review and publish yourself.

@@ -88,7 +88,7 @@ Cursor reads `.cursor/mcp.json` in your project (or the global one in `~/.cursor
 
 ### 5. Verify
 
-In the client, ask: *"List the available KernelCMS tools, then read `kernel://schema` and tell me which collections exist."* If it can list tools and read the schema, you're connected.
+In the client, ask: *"List the available KernelCMS tools, then read the `kernel://schema` resource and tell me which collections exist and which fields you're scoped to write."* If it can list tools and read the schema, you're connected. The two introspection resources are `kernel://schema` (the whole model) and `kernel://collections/<slug>` (one collection's descriptor) — both serve only visible collections, so no auth/hidden field names (`email`, `api_key`, `reset_token`) ever leak.
 
 ## Example
 
@@ -96,8 +96,8 @@ You add `content-bot` scoped to `['title', 'body', 'excerpt']` with `roles: ['ed
 
 ## Notes
 
-- **Tools are auto-generated** from your content model: `<slug>_list / _get / _count / _versions / _create / _update / _delete` per collection, `<slug>_get_global / _update_global` per global. Auth and hidden collections are excluded entirely.
+- **Tools are auto-generated** from your content model: `<slug>_list / _get / _count / _create / _update / _delete` per collection (`<slug>_versions` is added when the collection keeps a version history), `<slug>_get_global / _update_global` per global. Input schemas come from the shared JSON-Schema mapper, so they match your fields exactly and omit server-managed columns (`hash`, `api_key`, `_status`) — with `additionalProperties: false`, so an unscoped field can't be smuggled past the client. Auth and hidden collections are excluded from both tools and resources entirely. `<slug>_get` reads with `draft: true`, so the client always sees the latest draft (including the agent's own writes).
 - **`--agent` selects the stdio principal.** One agent → optional; many → required, or the CLI errors with the list.
-- **Multiple agents at once?** Serve over HTTP instead: `kernel mcp --http --port 4000` resolves the principal per-request from `Authorization: Bearer <token>`. It binds to `127.0.0.1` by default — don't expose it without a TLS proxy.
+- **Multiple agents at once?** Serve over HTTP instead: `kernel mcp --http --port 4000 --host 127.0.0.1` resolves the principal per-request from `Authorization: Bearer <token>` (or `x-kernel-agent: <token>`). Each request is authenticated independently — agent A's token yields A's scope, B's yields B's — and no token is ever echoed. A missing/unknown token gets a `401` with no tools or resources served. It binds to `127.0.0.1` by default and CORS is off — don't expose it on `0.0.0.0` without a TLS proxy. Smoke-test it with `curl -X POST http://127.0.0.1:4000/mcp -H "Authorization: Bearer $CONTENT_BOT_TOKEN" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`.
 - **The token is a secret.** Keep it in env/`.env` (gitignored). Rotate by changing the env var; the config reads it fresh on boot.
 - **Draft-only, always.** Whatever you connect, the agent authors drafts. A human publishes from the admin. See **`scope-an-agent-safely`** to choose a minimal `fieldScope`.

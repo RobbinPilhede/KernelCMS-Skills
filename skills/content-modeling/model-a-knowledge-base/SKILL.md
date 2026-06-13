@@ -18,8 +18,8 @@ difficulty: intermediate
 > 1. **`kb_categories`** — `name` (text, required), `slug` (slug, unique), `description` (textarea), `icon` (select or text), `order` (number, integer, index) with `admin.defaultSort: 'order'` for a curated category list. A `join` named `articles` (`on: 'category'`) lists members.
 > 2. **`articles`** — `title` (text, required), `slug` (slug, unique, index), `summary` (textarea — also the search snippet and meta description source), `body` (richText, full), `category` (relationship → kb_categories, `onDelete: 'setNull'`), `keywords` (select hasMany or text array — extra search terms / synonyms), `helpful_count` (number — feedback signal), `updated_at` (automatic via timestamps).
 > 3. **Search — the defining feature.** Add a search adapter at the config root (`search: memorySearch()` for dev; a real adapter in prod) and mark `articles` searchable: `search: { fields: ['title', 'summary', 'body', 'keywords'] }`. Then query with `kernel.searchDocs({ collection: 'articles', query })`. **Search results are loaded through the access-checked read path**, so search never surfaces an article the caller can't read — internal/draft articles stay hidden automatically.
-> 4. **Drafts.** Give `articles` `versions: { drafts: true }` so an article is staged before going live; only published articles appear to anonymous readers (gate with `access.read` returning a `Where` like `{ _status: { equals: 'published' } }` for non-staff, or rely on the drafts read path).
-> 5. **Internal vs. public articles.** If some articles are staff-only, add an `audience` select (`public` | `internal`) and a row-level `access.read` that filters internal ones out for anonymous users. Because search uses the same read path, internal articles won't leak through search.
+> 4. **Drafts.** Give `articles` `versions: { drafts: true }` so an article is staged before going live. **Draft-hiding is automatic:** on a drafts collection the read path returns published documents only unless the caller explicitly passes `draft: true` (a privileged, authenticated path) — you do *not* hand-roll a `{ _status: { equals: 'published' } }` filter to keep drafts out of public reads. Use `access.read` for *who/what kind* of content a caller may see, not for the draft/published split.
+> 5. **Internal vs. public articles.** This is the access concern (orthogonal to drafts). If some articles are staff-only, add an `audience` select (`public` | `internal`) and a row-level `access.read` that returns a `Where` filtering internal ones out for anonymous users. Because search runs through the same read path, internal articles never leak through search — and neither do drafts.
 >
 > **Admin.** `useAsTitle: 'title'`, `defaultColumns`, `defaultSort: '-updated_at'`. Consider `cache: true` on read-heavy public collections (requires `config.cache`).
 >
@@ -34,7 +34,7 @@ The agent emits (excerpt):
 ```ts
 import { defineConfig } from 'kernelcms'
 import { sqliteAdapter } from 'kernelcms/sqlite'
-import { memorySearch } from 'kernelcms/search'
+import { memorySearch } from 'kernelcms'
 
 const isStaff = (req) => Boolean(req.user?.roles?.includes('staff') || req.user?.roles?.includes('admin'))
 
@@ -63,7 +63,9 @@ export default defineConfig({
       search: { fields: ['title', 'summary', 'body', 'keywords'] },
       admin: { useAsTitle: 'title', defaultColumns: ['title', 'category', 'updatedAt'], defaultSort: '-updatedAt' },
       access: {
-        // public sees only public articles; staff see everything. Search inherits this.
+        // Public sees only PUBLIC articles; staff see everything. (Drafts are already
+        // hidden from non-`draft` reads by the drafts read path — this Where is purely
+        // the public/internal split.) Search inherits this rule.
         read: ({ req }) => (isStaff(req) ? true : { audience: { equals: 'public' } }),
         update: ({ req }) => Boolean(req.user),
       },
@@ -99,7 +101,7 @@ const { docs } = await kernel.searchDocs({
 ## Notes
 
 - **Search is access-checked.** `kernel.searchDocs` runs hits through the same read path — it can never surface a document the caller can't read. That's why internal/draft articles stay out of public search with zero extra wiring.
-- **Wire two things:** a root `search:` adapter (`memorySearch()` in dev) **and** `search: { fields: [...] }` on the collection. One without the other does nothing.
+- **Wire two things:** a root `search:` adapter (`memorySearch()` in dev — imported from `kernelcms`) **and** `search: { fields: [...] }` on the collection. One without the other does nothing.
 - **`keywords`** (select hasMany or text array) adds searchable synonyms beyond the body text.
-- **Drafts** (`versions: { drafts: true }`) stage articles; combine with an `access.read` `Where` (or the drafts read path) so anonymous readers see only published, public content.
-- **`cache: true`** needs `config.cache` (e.g. `memoryCache()`); it serves reads read-through and invalidates on any write. Run `kernel generate:types` when done.
+- **Drafts hide themselves.** `versions: { drafts: true }` makes the read path published-only unless a caller passes `draft: true` — so anonymous readers never see drafts without any `access.read` rule. Reserve the `access.read` `Where` for the public/internal split, a separate concern.
+- **`cache: true`** needs `config.cache` (e.g. `memoryCache()`, also exported from `kernelcms`); it serves reads read-through and invalidates on any write. Run `kernel generate:types` when done.

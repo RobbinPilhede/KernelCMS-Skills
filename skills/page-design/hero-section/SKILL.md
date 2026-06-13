@@ -22,7 +22,7 @@ difficulty: starter
 > - **One primary CTA.** A verb the reader can act on now (`Start free`, `Read the quickstart`), pointing at a real path. A secondary link is allowed only if it's genuinely lower-commitment (docs, a demo) — never two equal buttons competing for the same click.
 > - **Eyebrow / kicker** only if it adds context the headline can't carry alone. Otherwise leave it out.
 >
-> **Hierarchy is the design.** One dominant line, one supporting line, one action. Don't pad the hero with fields the block offers but the message doesn't need — restraint reads as confidence. If the block has an image/media field, describe the asset's intent in plain words; don't fabricate a URL.
+> **Hierarchy is the design.** One dominant line, one supporting line, one action. Don't pad the hero with fields the block offers but the message doesn't need — restraint reads as confidence. If the block has an image/media field, describe the asset's intent in plain words and reference a real uploaded asset by id; don't fabricate a URL. A hero image that carries meaning needs `alt`; a purely atmospheric background gets empty `alt` and the headline must stay readable against it — never rely on text-over-image where contrast can't be guaranteed.
 >
 > **Guardrails.** Every field must be a real one from the schema and must validate. The page stays a draft — you cannot publish. When done, quote the final headline and CTA back to me and tell me it's ready to review.
 >
@@ -53,4 +53,5 @@ The agent reads `kernel://schema`, finds the `pages` collection with a `layout` 
 - **One block, done well.** This skill writes the hero only. Pair it with `feature-grid`, `testimonials-section`, and `cta-section` to build out the page, or use `design-landing-page` for the whole arc.
 - **`blockType` is the stored discriminator.** In `kernel.config.ts` a block is declared with a `slug`; in the stored JSON it appears as `blockType`. Match whatever the schema's block defines for its fields — don't guess `title` when the field is `heading`.
 - **Tools:** `kernel://schema` to discover blocks; `<collection>_create` / `<collection>_update` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `copy-voice-and-tone` to lock the headline's register, and `accessibility-pass` to check the hero's contrast and alt text before publish.
 - **Draft-only.** Agents can't publish. Review in the admin's live preview and ship it yourself.

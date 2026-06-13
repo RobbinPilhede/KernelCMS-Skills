@@ -57,5 +57,6 @@ The agent reads `kernel://schema`, finds a `gallery` block (`heading`, `images[]
 - **Reference uploads, don't invent URLs.** Gallery images are `upload` relationships to a media collection — use real ids from `<media>_list`. The renderer resolves them at the requested `depth`.
 - **Alt text every time.** It's an accessibility requirement and a graceful-degradation fallback, not an optional field.
 - **Curation is the craft.** Three sharp images outperform a wall of twelve; cut anything that doesn't show something new.
-- **Tools:** `kernel://schema` for the block shape; `<media>_list` to find asset ids; `<pages>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` for the block shape; `<media>_list` to find asset ids; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `image-and-media-hygiene` (sizes, formats, derivatives), `accessibility-pass` (alt review), and `performance-pass` (lazy-loading, weight) before publish.
 - **Draft-only.** Review and publish yourself.

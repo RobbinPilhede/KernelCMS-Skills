@@ -55,5 +55,6 @@ The agent reads `kernel://schema`, sees a `pages` collection whose `layout` bloc
 
 - **Prefer a query-driven feed over a hand-typed list.** If the schema offers a feed/list block that references the collection, the index updates itself as new posts publish. Only hand-list posts when no such block exists.
 - **Fetch, don't fabricate.** Use `<posts>_list` to get real ids, titles, and dates. Reads are access-filtered, so you only see what the agent principal is allowed to.
-- **Tools:** `kernel://schema` for the model; `<posts>_list` to fetch posts; `<pages>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` for the model; `<posts>_list` to fetch posts; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `model-a-blog` if the posts collection doesn't exist yet, `blog-post-layout` for the articles themselves, and `internal-linking` to wire the index into the site.
 - **Draft-only.** Review and publish yourself.

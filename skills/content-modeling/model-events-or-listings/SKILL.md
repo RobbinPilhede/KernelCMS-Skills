@@ -12,7 +12,7 @@ difficulty: intermediate
 
 ## Prompt
 
-> You are modeling events/listings in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, **`point`** (a `{ lat, lng }` geo coordinate), and the `join`.
+> You are modeling events/listings in KernelCMS as config-as-code with `defineConfig`. Use only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `date`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, **`point`** (a geo coordinate stored as a `[number, number]` pair), and the `join`.
 >
 > **Model it like this:**
 > 1. **Identity:** `title` (text, required), `slug` (slug, unique, index), `summary` (textarea), `description` (richText), `image` (upload → media).
@@ -80,7 +80,7 @@ export default defineConfig({
           { name: 'venue', type: 'text' },
           { name: 'address', type: 'text' },
           { name: 'city', type: 'text', index: true },     // filtered on → indexed
-          { name: 'coordinates', type: 'point' },           // { lat, lng } for the map pin
+          { name: 'coordinates', type: 'point' },           // [number, number] pair for the map pin
         ] },
 
         { type: 'row', fields: [
@@ -124,6 +124,6 @@ await kernel.find({
 
 - **Index what you filter/sort.** `starts_at`, `city`, `category`, and `sort_key` carry `index: true` because every listing query touches them. Filterable enums are `select`s, not free text.
 - **Stored vs. virtual compute is the key call.** A **stored** compute (no `virtual`) persists at write → sortable/filterable real column (use for `sort_key`). A **virtual** compute is derived on read, never stored → presentational only (use for `is_past`). Don't try to sort by a virtual field.
-- **`point`** stores `{ lat, lng }` — use it for map pins and proximity, alongside a plain indexed `city` for cheap text filtering.
+- **`point`** stores a `[number, number]` coordinate pair — use it for map pins and proximity, alongside a plain indexed `city` for cheap text filtering.
 - **Recurring events:** an `array` of `{ starts_at, ends_at }` rows; derive the next occurrence into the stored `sort_key`.
 - **Money:** integer `price_cents` + a `free` boolean; use `admin.condition` to hide the price input when free. Drafts stage events before publish.

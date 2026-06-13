@@ -59,4 +59,5 @@ The agent reads `kernel://schema`, finds an `faq` block (`heading`, `items[] = {
 - **The FAQ is where honesty pays.** One admitted limitation does more for trust than ten polished non-answers.
 - **Accordion-first.** Most FAQ blocks render collapsed by default — write questions that scan on their own, before anyone clicks to expand.
 - **Tools:** `kernel://schema` to discover the block and `items` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `pricing-section` (where the billing objections come from) and `seo-optimize-page` — a real FAQ is the natural source for structured-data questions.
 - **Draft-only.** Review and publish yourself.

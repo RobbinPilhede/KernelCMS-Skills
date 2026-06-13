@@ -14,9 +14,9 @@ difficulty: starter
 
 > You are adding SEO fields to a KernelCMS collection as config-as-code. There are two correct approaches — choose based on the brief and say which:
 >
-> **A. The first-party plugin (preferred for the common case).** `@kernel/plugin-seo` is an ordinary config-transformer plugin — no privileged access. It adds `meta_title` (text, `maxLength: 70`) and `meta_description` (textarea, `maxLength: 160` by default) under an "SEO" admin tab on the listed collections, and a `beforeChange` hook that **auto-fills** each from a source field when left blank:
+> **A. The first-party plugin (preferred for the common case).** The first-party SEO plugin (`seoPlugin`, from `kernelcms/plugin-seo`) is an ordinary config-transformer plugin — no privileged access. It adds `meta_title` (text, `maxLength: 70`) and `meta_description` (textarea, `maxLength: 160` by default) under an "SEO" admin tab on the listed collections, and a `beforeChange` hook that **auto-fills** each from a source field when left blank:
 > ```ts
-> import { seoPlugin } from '@kernel/plugin-seo'
+> import { seoPlugin } from 'kernelcms/plugin-seo'
 > // …
 > plugins: [
 >   seoPlugin({
@@ -59,7 +59,7 @@ The agent combines both: the plugin for the auto-filled text on both collections
 ```ts
 import { defineConfig } from 'kernelcms'
 import { sqliteAdapter } from 'kernelcms/sqlite'
-import { seoPlugin } from '@kernel/plugin-seo'
+import { seoPlugin } from 'kernelcms/plugin-seo'
 
 export default defineConfig({
   secret: process.env.KERNEL_SECRET ?? 'dev-only-secret',
@@ -100,7 +100,7 @@ export default defineConfig({
 
 ## Notes
 
-- **Plugin = `@kernel/plugin-seo` (`seoPlugin`).** Real fields: `meta_title` (text, ≤70) and `meta_description` (textarea, default ≤160). Options: `collections`, `generateTitleFrom`, `generateDescriptionFrom`, `descriptionMaxLength`. It's a plain config transformer — runs through the same migration path as hand-written fields, and skips fields already present.
+- **Plugin = `seoPlugin` (import from `kernelcms/plugin-seo`).** Real fields: `meta_title` (text, ≤70) and `meta_description` (textarea, default ≤160). Options: `collections`, `generateTitleFrom`, `generateDescriptionFrom`, `descriptionMaxLength`. It's a plain config transformer — runs through the same migration path as hand-written fields, and skips fields already present.
 - **Auto-fill only seeds blanks** and only from **string** source fields, in a `beforeChange` hook. An editor's explicit value always wins.
 - **Group vs. plugin:** plugin for consistent auto-filled meta across collections; inline `group`/`tab` for fields it doesn't ship (OG, canonical, noindex) or full control.
 - **Length caps** (`maxLength` 70 / 160) prevent truncation in search results — keep them.

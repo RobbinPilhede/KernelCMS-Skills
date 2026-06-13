@@ -1,6 +1,6 @@
 ---
 name: cta-section
-description: Compose a closing call-to-action block in KernelCMS that restates the promise and asks for one action — as a draft.
+description: Compose a closing CTA block in KernelCMS — restate the promise, remove the last friction, ask for exactly one action — as a draft.
 category: Page design
 tags: [cta, conversion, blocks, marketing]
 difficulty: starter
@@ -22,7 +22,7 @@ difficulty: starter
 > - **Remove the last friction.** If a subhead is available, use it to answer the final hesitation in a few words — "No credit card," "Two minutes to first content," "Self-host or let us host it."
 > - **Short.** A closing CTA is a headline, a half-sentence, and a button. Anything more is the reader scrolling past a wall, not clicking.
 >
-> **Design judgment.** This block usually sits in a contrasting band so it reads as the destination — keep the copy tight enough that it works as a single focal point. The CTA verb here should match the one in the hero, so the page's whole arc points at one action, not two competing ones.
+> **Design judgment.** This block usually sits in a contrasting band so it reads as the destination — keep the copy tight enough that it works as a single focal point, and make sure the button text clears 4.5:1 against that band. The CTA verb here should match the one in the hero, so the page's whole arc points at one action, not two competing ones.
 >
 > **Guardrails.** Real fields only, all must validate; the `href` must be a real path. The page stays a draft. When done, quote the closing headline and CTA back to me and tell me it's ready to review.
 >
@@ -51,4 +51,5 @@ The agent reads `kernel://schema`, finds a `cta` block (`heading`, `subhead`, `l
 - **Match the hero's verb.** If the hero said "Read the quickstart," the closing CTA shouldn't suddenly say "Book a demo" — one page, one action.
 - **The close is a focal point, not a paragraph.** When in doubt, cut a line.
 - **Tools:** `kernel://schema` to discover the block; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `hero-section` (match the verb) and `conversion-audit` to confirm the page points at one action.
 - **Draft-only.** Review and publish yourself.

@@ -59,5 +59,6 @@ The agent reads `kernel://schema`, finds a `docs` collection with `title`, `lead
 - **Accuracy over polish.** A docs page with one invented flag is worse than a plain one — verify APIs against `kernel://schema` and the real KernelCMS surface, and flag anything you can't confirm.
 - **Headings are the UX.** A reader who skims only the h2s should still know what the page covers and in what order.
 - **richText vs blocks body.** If the body is a single `richText` field, build the hierarchy with real headings/code inside it; if it's a `blocks` field, compose typed blocks as above. Check the schema first.
-- **Tools:** `kernel://schema` for the model; `<docs>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` for the model; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `model-a-docs-site` if the collection and sidebar nav don't exist yet, and `readability-pass` to keep prose between code blocks tight.
 - **Draft-only.** Review and publish yourself.

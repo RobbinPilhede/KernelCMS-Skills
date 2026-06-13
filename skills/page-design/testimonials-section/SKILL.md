@@ -25,7 +25,7 @@ difficulty: starter
 >
 > **Critical guardrail — never fabricate.** Do not invent customers, names, companies, logos, or quotes. Only use testimonials I provide in the brief. If I haven't given you any, leave the block out and tell me you need real ones — a single honest line beats a section of plausible fiction. Don't fabricate avatar or logo URLs either.
 >
-> **Design judgment.** Cards of similar length scan as a set; trim or pick quotes so the column heights stay even. If avatars are available, keep them consistent (all photos or all initials). One section heading that frames the proof, e.g. "Teams that stopped fighting their CMS."
+> **Design judgment.** Cards of similar length scan as a set; trim or pick quotes so the column heights stay even. If avatars are available, reference real uploaded assets, keep them consistent (all photos or all initials), and give each one `alt` text that names the person — not "avatar." One section heading that frames the proof, e.g. "Teams that stopped fighting their CMS."
 >
 > **Guardrails.** Real fields only, all must validate. The page stays a draft. When done, list whose quotes you used and tell me it's ready to review.
 >
@@ -56,5 +56,6 @@ The agent reads `kernel://schema`, finds a `testimonials` block (`heading`, `quo
 
 - **No invented proof, ever.** Fabricated testimonials are a legal and trust liability. If the brief has none, the right move is to flag it, not to fill it.
 - **Numbers and nouns outperform adjectives.** When editing a real quote down to length, keep the part with a concrete result.
-- **Tools:** `kernel://schema` to discover the block and `quotes` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` to discover the block and `quotes` shape; `<collection>_update` / `_create` to write. Pull avatar ids from `<media>_list`. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `stats-band` for hard-number proof and `image-and-media-hygiene` if the cards carry avatars.
 - **Draft-only.** Review and publish yourself.

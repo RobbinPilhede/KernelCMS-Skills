@@ -58,5 +58,6 @@ The agent reads `kernel://schema`, finds an `articles` collection with header fi
 - **Readability is a structure problem, not a word problem.** Subheads, short paragraphs, and the occasional list do more for comprehension than any sentence-level polish.
 - **One device, used once well.** A single pull quote on the best line beats five competing for attention.
 - **richText vs blocks body.** If the body is one `richText` field, structure it with real headings/lists inside that field; if it's a `blocks` field, compose typed content blocks as above. Check the schema first.
-- **Tools:** `kernel://schema` for the model; `<articles>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` for the model; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `readability-pass` for rhythm and measure, `seo-optimize-page` / `metadata-and-open-graph` for the title, deck, and share card, and `blog-index-page` to surface it.
 - **Draft-only.** Review and publish yourself.

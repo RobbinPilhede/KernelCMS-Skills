@@ -52,7 +52,7 @@ publishedAt unmapped — set at publish time. Review createdByType:agent drafts,
 
 ## Notes
 
-- **Two import paths.** Agent-over-MCP (this skill) gives you per-row transforms and reviewable drafts. `npx kernel import --file <export.json>` is the CLI bulk path for a portable `{ "<slug>": [rows] }` export — faster for trusted, large one-shots, but it's a human/CLI action, not an agent one. Choose per migration; you can combine (CLI for the bulk, agent for the tricky transforms).
+- **Two import paths.** Agent-over-MCP (this skill) gives you per-row transforms and reviewable drafts. `npx kernel import --file <export.json>` is the CLI bulk path for a portable `{ "<slug>": [rows] }` export — it auto-migrates (creates any missing tables) then inserts, reporting per-collection counts and per-row errors. Faster for trusted, large one-shots, but it's a human/CLI action, not an agent one, and it isn't draft-gated — rows land as written. Choose per migration; you can combine (CLI for the bulk, agent for the tricky transforms).
 - **Map before you import.** The schema is the contract — an unmapped source field or an unsatisfied required target field is a decision, not a default. Surface them.
 - **Order matters.** Import referenced collections first so relationship fields resolve; keep a source-id → new-id table.
 - **Draft-only.** Agents can't publish, so a botched migration is a pile of reviewable drafts, never a broken live site. Cutover is the human's publish step.

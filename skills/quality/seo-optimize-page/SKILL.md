@@ -21,11 +21,11 @@ difficulty: intermediate
 > 2. **Meta description (`meta_description`)** — 140–160 chars, one concrete benefit + an implied action, contains the primary term naturally, no truncation mid-word, no keyword stuffing.
 > 3. **Heading hierarchy** — exactly one H1 (usually the hero/title), no skipped levels (H2→H4), headings describe content not styling, keyword in the H1 and at least one H2.
 > 4. **Internal links** — at least 2–3 contextual links to related collection docs using real slugs (verify with a `_list`/`_get`); descriptive anchor text, never "click here"; no orphan page.
-> 5. **Structured data** — propose the right schema.org type (`Article`, `Product`, `FAQPage`, `BreadcrumbList`) as JSON-LD; only if a field/block exists to hold it, otherwise report it as a recommendation for the developer.
+> 5. **Structured data** — propose the right schema.org type and its required properties as JSON-LD: `Article` (`headline`, `datePublished`, `author`, `image`), `Product` (`name`, `image`, `offers.price` + `priceCurrency`), `FAQPage` (`mainEntity[]` of `Question`/`acceptedAnswer`, only for real on-page Q&A), `BreadcrumbList` (ordered `itemListElement`). Every value must come from real document data — never fabricate a date, author, rating, or price. Write it only if a field/block exists to hold raw JSON-LD; otherwise report the exact object as a developer recommendation.
 > 6. **Slug** — short, hyphenated, keyword-bearing, stable. Flag (don't silently change) slug edits on published URLs — they break links.
 > 7. **Content signals** — first 100 words state what the page is about; the primary term appears in the first paragraph and is not over-repeated.
 >
-> **Apply scoped fixes.** Rewrite `meta_title`/`meta_description`, fix heading levels in the content blocks, and add internal links via `<collection>_update`. Leave everything a draft. If `meta_title` is blank, note that the SEO plugin will seed it from the title source field — only override when you can do better.
+> **Apply scoped fixes.** Rewrite `meta_title`/`meta_description`, fix heading levels in the content blocks, and add internal links via `<collection>_update`. Leave everything a draft. If `meta_title` is blank and the plugin is configured with `generateTitleFrom`, the `beforeChange` hook seeds it from that source field, truncated to 70 chars — only set an explicit value when you can do better than that raw slice.
 >
 > **Report.** List every finding, the before/after for each edit you made, and anything that needs a developer (a missing JSON-LD field, a risky slug change, an orphan that needs a link from elsewhere).
 >
@@ -49,7 +49,7 @@ In the body blocks it changes the second-level heading from an H4 to an H2 (fixi
 ## Notes
 
 - **Tools:** `kernel://schema` for fields; `<collection>_get` to read, `<collection>_update` to write `meta_title`, `meta_description`, and content blocks. See the [MCP guide](https://kernelcms.com/mcp).
-- **SEO plugin shape:** `@kernel/plugin-seo` adds `meta_title` (≤70) and `meta_description` (≤160) as **top-level columns** under an "SEO" tab, and can auto-seed them from a source field (`generateTitleFrom`). They're real columns, so they're queryable and the length limits are enforced.
+- **SEO plugin shape:** `@kernel/plugin-seo` adds `meta_title` (text, `maxLength: 70`) and `meta_description` (textarea, `maxLength: 160`, configurable via `descriptionMaxLength`) as **top-level columns** under an "SEO" tab. It auto-seeds blanks from source fields (`generateTitleFrom` / `generateDescriptionFrom`) in a `beforeChange` hook, sliced to the cap. Real columns, so they're queryable and the limits are enforced on write.
 - **Draft-only & scoped.** The agent can only edit fields in its `fieldScope` and can never publish. If SEO fields aren't in scope, it reports the recommended values instead of writing them.
 - **Don't break URLs.** Slug changes on a live page are a redirect problem — flag, never auto-apply.
 - Pair with **`metadata-and-open-graph`** for social cards and **`internal-linking`** for the site-wide graph.

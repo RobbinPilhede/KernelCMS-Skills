@@ -64,4 +64,5 @@ The agent reads `kernel://schema`, finds a `pricing` block (`heading`, `tiers[] 
 - **Honesty converts.** Hidden prices, fake "most popular" stars on every plan, and "contact us for the cheap tier" all erode trust faster than a high number does.
 - **Recommended tier survives mobile.** When columns stack, make sure the featured plan is visually first or unmistakably flagged — don't bury it in the middle of a vertical list.
 - **Tools:** `kernel://schema` to discover the block and its `tiers` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `comparison-section` for buyers weighing alternatives, `faq-section` for the billing objections, and `conversion-audit` to pressure-test the recommended tier.
 - **Draft-only.** Agents can't publish — review and ship it yourself.

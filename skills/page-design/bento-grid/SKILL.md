@@ -58,4 +58,5 @@ The agent reads `kernel://schema`, finds a `bento` block (`heading`, `cells[] = 
 - **Tile cleanly.** Spans that don't fill the grid leave ugly gaps — plan the layout on paper (or in your head) before writing the JSON.
 - **Source order = mobile order.** The grid linearizes top-to-bottom on small screens.
 - **Tools:** `kernel://schema` to discover the block and its exact span values; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `design-tokens-and-consistency` so the tiles share spacing and radius, and `feature-grid` when the content is uniform enough that a plain grid is the honest call.
 - **Draft-only.** Review and publish yourself.

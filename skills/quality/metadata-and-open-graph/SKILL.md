@@ -20,7 +20,7 @@ difficulty: intermediate
 > 1. **`meta_title`** — 50–60 chars, unique, primary term first, brand suffix if it fits (≤70 hard cap).
 > 2. **`meta_description`** — 140–160 chars, one benefit + implied action; this is also the OG/Twitter description fallback.
 > 3. **`og_title`** — defaults to `meta_title`; set a punchier social variant only if it reads better in an unfurl. ≤60 chars.
-> 4. **`og_description`** — defaults to `meta_description`; can be a touch more conversational. ≤160–200 chars.
+> 4. **`og_description`** — defaults to `meta_description`; can be a touch more conversational. Keep it ≤160 chars so it works even when an unfurl reuses the shorter `meta_description` cap.
 > 5. **`og_image`** — a 1200×630 (1.91:1) image with `alt`; not the favicon, not a tiny logo; readable at thumbnail size. Repoint to an `imageSizes` variant of the right ratio if one exists. Recommend creating one if not.
 > 6. **`twitter_card`** — `summary_large_image` for content with a strong image, `summary` otherwise; ensure the image satisfies the card's min dimensions.
 > 7. **`canonical_url`** — set to the page's own absolute URL; for duplicated/syndicated/paginated content, point at the canonical original. Flag any cross-domain canonical for human confirmation.

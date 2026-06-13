@@ -41,7 +41,7 @@ The agent emits (excerpt):
 ```ts
 import { defineConfig } from 'kernelcms'
 import { sqliteAdapter } from 'kernelcms/sqlite'
-import { seoPlugin } from '@kernel/plugin-seo'
+import { seoPlugin } from 'kernelcms/plugin-seo'
 
 export default defineConfig({
   secret: process.env.KERNEL_SECRET ?? 'dev-only-secret',
@@ -101,6 +101,7 @@ export default defineConfig({
 ## Notes
 
 - **Drafts ≠ a status field.** `versions: { drafts: true }` gives you `_status`, history, scheduled publish, and the `publish` access edge for free. Reserve a manual `select` for editorial states the lifecycle doesn't cover.
+- **Drafts hide themselves on read.** With drafts on, public reads are published-only automatically — a caller sees a draft only by explicitly passing `draft: true` (an authenticated path). So `access: { read: () => true }` is safe; you don't add a `_status` filter to keep drafts out of the public feed.
 - **`join` is virtual** — nothing is stored; it resolves at read time only when `depth > 0`, ordered by the related collection's `admin.defaultSort`. Set that on `posts` so an author's post list is deterministic.
 - **`onDelete` is per relationship field.** Default is a dangling reference; choose `setNull`/`cascade`/`restrict` deliberately. See **`relationships-and-joins`**.
 - **SEO:** inline `group` for full control, or `seoPlugin` for parity-with-Payload auto-generation. See **`add-seo-fields`**.

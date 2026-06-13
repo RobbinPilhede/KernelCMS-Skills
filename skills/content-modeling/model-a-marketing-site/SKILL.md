@@ -39,7 +39,7 @@ The agent emits (excerpt):
 ```ts
 import { defineConfig } from 'kernelcms'
 import { sqliteAdapter } from 'kernelcms/sqlite'
-import { seoPlugin } from '@kernel/plugin-seo'
+import { seoPlugin } from 'kernelcms/plugin-seo'
 
 const blocks = [
   { slug: 'hero', admin: { group: 'Header', description: 'One promise, one CTA.' },

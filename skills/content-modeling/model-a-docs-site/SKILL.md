@@ -20,7 +20,7 @@ difficulty: intermediate
 > 3. **Content:** `body` (richText, `preset: 'full'`). For doc-shaped content, richText carries headings, lists, and inline/code blocks. If pages are mostly long code samples, add a `code_examples` `array` of `{ language: select, code: code }` so each sample is typed and language-tagged rather than buried in prose.
 > 4. **Meta:** `updated_at` is automatic (`timestamps`). Add `is_deprecated` (boolean) and an optional `redirect_to` self-relationship for moved pages.
 >
-> **Versioning — this is the point.** Give `docs` `versions: true` for history-only (every save snapshots, restorable from the admin and `<slug>_versions`), or `versions: { drafts: true, maxPerDoc: 100 }` if you also want a draft → published edge so edits are staged before going live. Choose history-only when every save should be live but auditable; choose drafts when reviewers gate publishing. State which and why.
+> **Versioning — this is the point.** Give `docs` `versions: true` for history-only (every save snapshots to a backing `_versions_docs` table, restorable from the admin or via `kernel.findVersions` / `kernel.restoreVersion`), or `versions: { drafts: true, maxPerDoc: 100 }` if you also want a draft → published edge so edits are staged before going live. Choose history-only when every save should be live but auditable; choose drafts when reviewers gate publishing. State which and why.
 >
 > **Doc versions (e.g. v1 vs v2 of the product).** That is product versioning, distinct from document history. Model it as a `version` `select`/relationship field (or a `doc_versions` collection that `docs` belong to) so the same slug exists per product version. Don't conflate it with `versions:` (which is revision history of one document).
 >
@@ -92,4 +92,4 @@ export default defineConfig({
 - **`versions: true` vs `versions: { drafts: true }`:** history-only snapshots every save and is restorable; drafts adds the `_status` lifecycle, scheduled publish, and the separate `access.publish` edge. See **`localization-setup`** and **`model-a-blog`** for the drafts path.
 - **Ordering is explicit.** An indexed `order` integer + `defaultSort: 'order'` beats relying on `createdAt`. The `join`/sidebar inherits the related collection's `defaultSort`.
 - **`code` field** is a single code string; an `array` of `{ language, code }` is the move when a page has many distinct samples.
-- Restore from history via the admin or the `<slug>_versions` surface; `findVersions` can filter by `createdByType` to review agent vs. human edits.
+- Restore from history via the admin or the `kernel.findVersions` / `kernel.restoreVersion` API (snapshots live in the backing `_versions_<slug>` table); `findVersions` can filter by `createdByType` to review agent vs. human edits.

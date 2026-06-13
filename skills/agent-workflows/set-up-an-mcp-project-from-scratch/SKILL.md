@@ -40,7 +40,7 @@ export default defineConfig({
     {
       slug: 'pages',
       access: { read: () => true },
-      versions: { enabled: true, drafts: true }, // drafts + version history
+      versions: { drafts: true }, // drafts + version history (drafts implies versioning)
       fields: [
         { name: 'title', type: 'text', required: true },
         { name: 'slug', type: 'text' },
@@ -144,7 +144,7 @@ The page lands as a **draft**. You open it in the admin, preview, and publish.
 ## Notes
 
 - **Commands:** `npx kernel init` (scaffold), `npx kernel dev` (migrate + serve), `npx kernel mcp --agent <id>` (serve MCP over stdio). For many agents at once, `kernel mcp --http --port 4000` resolves the principal per-request from the bearer token (binds to `127.0.0.1`; don't expose without TLS).
-- **Drafts need `versions.drafts`.** The agent authors drafts — enable `versions: { enabled: true, drafts: true }` on collections it writes, so there's a draft lifecycle and version history to review. `versions` also enables the `pages_versions` tool (filterable by `createdByType: 'agent'`).
+- **Drafts need `versions.drafts`.** The agent authors drafts — set `versions: { drafts: true }` on collections it writes (`drafts: true` implies versioning), so there's a draft lifecycle and version history to review. That history also enables the `pages_versions` tool, filterable by `createdByType: 'agent'`.
 - **The blocks field is the page builder.** Block types and fields you define are the only ones the agent can use — that's the guardrail that keeps composition valid. Add blocks in the config; the schema (and agent) pick them up.
 - **Least privilege from day one.** Scope the agent to the few fields it needs; never grant `admin` (rejected at startup); source the token from env. See **`scope-an-agent-safely`**.
 - **Draft-only.** Whatever the agent does in this setup, it can't publish — you do, from the admin. See **`review-agent-drafts`**.

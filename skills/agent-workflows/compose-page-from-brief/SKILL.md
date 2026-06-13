@@ -20,7 +20,7 @@ This is the agent-driving counterpart to the **Page design** skills: those encod
 >
 > **2. Plan the arc.** Turn the brief into an ordered narrative, not a pile of sections — hero → proof → value → how-it-works → FAQ → closing CTA, cutting anything that doesn't move the reader forward. Match the brand voice if given.
 >
-> **3. Write the field.** Build the `blocks` array in order, each entry a real `blockType` with its fields filled and valid. Set it in a single `<collection>_update` (or `<collection>_create`) call. If a field you'd want isn't in your scope, leave it and say so.
+> **3. Write the field.** Build the `blocks` array in order, each entry an object `{ blockType, …fields }` whose `blockType` is a real block slug and whose fields are filled and valid. Set it in a single call: `<collection>_update` (id required; it's a partial patch, so you can write just the blocks field) on an existing page, or `<collection>_create` for a new one. If a field you'd want isn't in your scope, leave it and say so.
 >
 > **4. Confirm.** The page is a draft regardless of what you set — you can't publish it. When done, summarize the section order, the single most important line on the page, and any block types or fields you wanted but couldn't use. Tell the human it's ready to review and publish.
 >

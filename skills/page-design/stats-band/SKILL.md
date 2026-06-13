@@ -54,5 +54,6 @@ The agent reads `kernel://schema`, finds a `stats_band` block (`heading`, `stats
 
 - **Three solid numbers beat four with a soft one.** If a figure is vanity or unverified, cut it.
 - **Consistent formatting reads as designed.** Pick one number style and hold it across the band.
-- **Tools:** `kernel://schema` to discover the block and `stats` shape; `<pages>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Tools:** `kernel://schema` to discover the block and `stats` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `testimonials-section` (numbers plus voices is stronger proof than either alone) and place it right after the hero in `design-landing-page`.
 - **Draft-only.** Review and publish yourself.

@@ -19,13 +19,14 @@ difficulty: intermediate
 > **Audit against this checklist**, marking each item pass / content-fix / dev-fix:
 > 1. **Images (1.1.1)** — every meaningful image has descriptive `alt` (what it conveys, not "image of"); decorative images have `alt=""`; no alt text starting with "picture of"; complex images (charts) have a longer description nearby.
 > 2. **Heading order (1.3.1, 2.4.6)** — one H1, no skipped levels, headings reflect structure, not visual size.
-> 3. **Contrast (1.4.3)** — body text ≥ 4.5:1, large text (≥24px or ≥19px bold) ≥ 3:1, UI/icons ≥ 3:1. Flag any text-on-image or low-contrast token combination for the developer; you can usually only fix the *content* choice (e.g. swap a hero image with poor focal contrast).
+> 3. **Contrast (1.4.3, 1.4.11)** — compute the ratio from the resolved foreground/background hex values: body text ≥ 4.5:1, large text (≥24px, or ≥18.66px bold) ≥ 3:1, UI components and meaningful icons/borders ≥ 3:1. Text over an image or gradient is unknowable from tokens alone — flag it for human/dev verification. You can usually only fix the *content* choice (swap a hero image with poor focal contrast); the token fix is a dev-fix.
 > 4. **Link & button text (2.4.4)** — anchors make sense out of context; no bare "click here" / "read more" / raw URLs; buttons describe their action.
 > 5. **Labels (1.3.1, 4.1.2)** — any form/CTA block field has a real label, not placeholder-only. Flag inputs missing labels for the developer.
-> 6. **Focus & keyboard (2.1.1, 2.4.7)** — interactive blocks are reachable and have a visible focus state. This is usually a dev-fix; report it.
+> 6. **Focus & keyboard (2.1.1, 2.4.7, 2.5.8)** — interactive blocks are reachable in DOM order, have a visible `:focus-visible` state, no keyboard traps, and touch targets are ≥24×24px (AA). This is usually a dev-fix; report the specific element and criterion.
 > 7. **Motion (2.3.3, 2.2.2)** — autoplaying/looping or parallax blocks respect `prefers-reduced-motion` and can be paused. Report any motion block that can't.
 > 8. **Semantics (1.3.1)** — content uses real structure (lists, headings, landmarks) not styled `div`s; tables have headers; language is set.
 > 9. **Text alternatives for media (1.2)** — video/audio blocks have captions/transcripts; flag missing ones.
+> 10. **Reflow & resize (1.4.10, 1.4.4)** — content reflows to a single column at 320px wide / 400% zoom without horizontal scroll, and survives 200% text zoom without clipping. Fixed-width blocks or text baked into images are dev-fixes; flag them with the element.
 >
 > **Apply content fixes.** Write/improve `alt` text on media docs, fix heading levels and link text in the blocks, add captions where a field exists — all via `<collection>_update`, as drafts.
 >

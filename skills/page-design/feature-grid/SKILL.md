@@ -57,4 +57,5 @@ The agent reads `kernel://schema`, finds a `feature_grid` block (`heading`, `ite
 - **Restraint is the skill.** The hard part isn't filling the grid — it's deleting the fourth, fifth, and sixth items that dilute the first three.
 - **Mobile order matters.** Grids collapse to a single column on small screens; the first item should be the strongest because it's read first.
 - **Tools:** `kernel://schema` to discover the block and its `items` shape; `<collection>_update` / `_create` to write. See the [MCP guide](https://kernelcms.com/mcp).
+- **Pair with** `hero-section` above it and `cta-section` below; run `copy-voice-and-tone` over the titles to keep them parallel.
 - **Draft-only.** Review in the admin and publish yourself.

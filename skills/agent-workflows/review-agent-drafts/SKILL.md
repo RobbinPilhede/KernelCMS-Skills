@@ -16,7 +16,7 @@ It works two ways: an agent can *gather and summarize* the review material for y
 
 > You are auditing agent-authored drafts in KernelCMS so a human can decide what to publish. You are **read-only** for this task: gather, summarize, and recommend — do not publish (you can't anyway), and flag anything you'd reject.
 >
-> **1. Find the agent's work.** For each candidate document, call `<collection>_versions` with `createdByType: 'agent'` to list only the snapshots an agent authored. Use `<collection>_list` with a `where` filter on draft status to enumerate the batch first if you don't have ids.
+> **1. Find the agent's work.** If you don't have ids, enumerate the batch first with `<collection>_list` (filter with `where` on draft status / a date range). Then, for each candidate, call `<collection>_versions` with `{ id, createdByType: 'agent' }` to list only the snapshots an agent authored — that filter is the audit's backbone, so attribution is unambiguous. (`<collection>_versions` exists only for collections that keep a version history.)
 >
 > **2. Read each draft.** Call `<collection>_get` (it reads the latest draft) to see the current content. Compare against the version history if you need to see what the agent changed and when.
 >
@@ -28,7 +28,7 @@ It works two ways: an agent can *gather and summarize* the review material for y
 
 ### The human publish step (not an agent action)
 
-After review, the human opens each keeper in the admin, completes any out-of-scope fields (author, SEO, media), checks it in **live preview**, and publishes from there. Publishing is gated by the collection's `access.publish` rule and is unavailable to agent principals — so this transition is always a deliberate human decision.
+After review, the human opens each keeper in the admin, completes any out-of-scope fields (author, SEO, media), checks it in **live preview**, and publishes from there. Publishing is gated by the collection's `access.publish` rule — which, when omitted, falls back to the `update` rule, so set it explicitly if you want to forbid a role from publishing. Either way it is never satisfied by an agent principal, so this transition is always a deliberate human decision (or a human-role caller you trust). If a draft must be reverted, restore an earlier snapshot from the version history in the admin.
 
 ## Example
 

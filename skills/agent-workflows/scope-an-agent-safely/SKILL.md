@@ -20,7 +20,7 @@ This skill is operational — apply the checklist when authoring an agent.
 
 `roles` decide which collection-level access rules apply to the agent — the *exact same* rules a human in that role gets. Choose the narrowest role that grants read/create/update on the collections the agent works in.
 
-- Never grant `admin` — it's rejected at startup, because it would widen every role-gated rule for a non-human caller.
+- Never grant `admin` — the config sanitizer **rejects it at startup** (a hard error, not a warning), because `admin` is the role the auth layer trusts and granting it would widen every role-gated rule for a non-human caller.
 - Prefer a purpose-built role (e.g. `content-bot`, `translator`) over a broad `editor` if your access rules can key off it.
 - The role gates *which collections and rows*; it does **not** loosen field scope.
 
@@ -51,7 +51,7 @@ Rules of thumb:
 
 Two brakes live in `@kernel/core`, not the MCP adapter, so they hold no matter how the agent connects:
 
-1. **Draft-only.** A born-published `create`, a `_status: published` write, a `publish()`, or a scheduled publish are all rejected for an agent principal. Publishing stays a human decision. So the *worst case* of an over-scoped agent is a bad draft a human reviews — never live content.
+1. **Draft-only.** Every route to "published" is rejected for an agent principal: a born-published `create` (`_status: 'published'`), a `PATCH { _status: 'published' }`, a `publish()` call, and a scheduled publish (`publishAt` / `_scheduled_at`) alike. The draft→published transition is gated by the collection's `access.publish` rule, which an agent can never satisfy. So the *worst case* of an over-scoped agent is a bad draft a human reviews — never live content.
 2. **Field scope, engine-enforced.** Stripping happens before per-field access rules, so an unscoped field can't be smuggled in via the MCP client (the tool schemas also use `additionalProperties: false`).
 
 Field scope is what bounds the *blast radius* of a draft; draft-only is what keeps any mistake off the live site. Together they mean a compromised or confused agent can, at worst, produce reviewable drafts within a few named fields.
