@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 62,
+  "count": 63,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -974,6 +974,23 @@
       "difficulty": "starter",
       "path": "skills/retrieval-ai/add-schema-org-jsonld/SKILL.md",
       "prompt": "This skill is operational — follow the runbook.\n\n### 1. Map collections to schema.org types\n\n```ts\nexport default defineConfig({\n  // …\n  structuredData: {\n    baseUrl: 'https://acme.com',\n    collections: [\n      { slug: 'articles', type: 'Article', urlPattern: '/blog/:slug' },\n      { slug: 'products', type: 'Product', urlPattern: '/shop/:slug' },\n      { slug: 'authors', type: 'Person' },\n    ],\n  },\n})\n```\n\nWith no explicit `mapping`, **smart defaults** do the work: your title → `name`/`headline`, rich-text body → `articleBody` (+ a `description`), publish/updated dates → `datePublished`/`dateModified`, an author relationship → `author`, an image field → `image`. Override any property:\n\n```ts\n{ slug: 'products', type: 'Product', mapping: { name: 'product_name', description: 'tagline', image: 'hero' } }\n```\n\n### 2. Embed it in your pages\n\n```ts\nconst script = await kernel.jsonLdScript({ collection: 'articles', id })\n// → '<script type=\"application/ld+json\">{ \"@context\": \"https://schema.org\", \"@type\": \"Article\", … }</script>'\n```\n\nDrop `script` into your page `<head>`. (It's HTML-escaped, so content can't break out of the tag.) Or fetch the raw object: `kernel.jsonLd({ collection, id })`. Over REST: `GET /api/articles/ID/jsonld` returns `application/ld+json`.\n\n### 3. Validate\n\nPaste a rendered page (or the `/jsonld` output) into Google's [Rich Results Test](https://search.google.com/test/rich-results) or the [schema.org validator](https://validator.schema.org/). Fix field mappings until the type validates with the properties you want surfaced.\n\n### 4. Trust the boundaries\n\nGeneration runs through the same access-checked read as any public request: a **draft, private, or read-denied** document or field is never emitted — anonymous callers get only published, publicly-readable content. The `<script>` embedding is XSS-safe (content can't escape the tag), and `@id`/`image` URLs are injection-safe.\n\n### 5. Pair it with the rest of the discoverability stack\n\nStructured data completes the trio with [semantic search](#/prompts) (your content as a RAG knowledge base) and [llms.txt / GEO](#/prompts) (citable by AI answer engines). Together they make your content fully machine-understandable for both classic search and the AI-answer era.\n\nProvide: «the collections to expose, the schema.org type for each, and any non-default field mappings»."
+    },
+    {
+      "name": "ground-an-agent-with-graphrag",
+      "title": "Ground an agent with GraphRAG",
+      "description": "Ground an AI agent on a connected subgraph of your KernelCMS content using GraphRAG — semantic search finds seed documents, the typed relationship graph expands them into context, all access-checked and bounded.",
+      "category": "Retrieval & AI",
+      "tags": [
+        "graphrag",
+        "knowledge-graph",
+        "rag",
+        "retrieval",
+        "relationships",
+        "context"
+      ],
+      "difficulty": "advanced",
+      "path": "skills/retrieval-ai/ground-an-agent-with-graphrag/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Have relationships + embeddings\n\nGraphRAG needs two things you already model: **relationships** between collections (the edges) and **semantic search** (to find seeds). Enable `embeddings` and mark the seed collection `search: { fields, semantic: true }` (see the *set-up-semantic-search* skill).\n\n### 2. Walk the graph around a document\n\n```ts\nconst { nodes, edges } = await kernel.graph({ collection: 'articles', id, depth: 2 })\n// nodes: [{ ref:'articles:ID', collection, id, label }, …]\n// edges: [{ from, to, field, relationTo, kind:'relationship'|'reverse' }, …]\n```\n\n`graph` walks **outbound** relationship fields and **inbound** reverse-relationships (a `join` field), up to `depth` hops — so from an author you reach their posts, and from a post you reach its categories. Over REST: `GET /api/articles/ID/graph?depth=2`.\n\n### 3. Retrieve connected context for a question (GraphRAG)\n\n```ts\nconst { seeds, nodes, edges, context } = await kernel.graphSearch({\n  collection: 'articles',\n  query: 'how does our billing handle proration',\n  depth: 1,\n})\n// context: [{ ref, label, text }, …]  ← ground your model on this\n```\n\n`graphSearch` semantic-searches for the best **seed** documents, then expands each through the graph to pull in their connected neighbors, returning a `context` array (label + text per reachable node). Over REST: `GET /api/graph-search?q=…&collection=articles`.\n\n### 4. Hand the context to your model\n\n```ts\nconst grounding = context.map((c) => `## ${c.label}\\n${c.text}`).join('\\n\\n')\n// → your LLM call: \"Answer using ONLY this context: …\" + cite by label/ref\n```\n\nGraphRAG typically beats flat RAG when relationships carry meaning (org charts, product catalogs, docs with cross-references) — the connected context fills gaps a single chunk would miss.\n\n### 5. Trust the boundaries\n\nEvery node loads through KernelCMS's access control: a document the requester can't read is dropped **and the edge to it is omitted** — the graph never even reveals a hidden document is connected, and read-denied fields never appear in labels or context. Depth (max 10), node count (cap 500), per-node fan-out, and cycles are all bounded, so a hub or a deep graph can't blow up. It's the **retrieval** half — the generation is yours.\n\nProvide: «the seed collection + the question, how deep to expand, and which relationships carry the meaningful context»."
     },
     {
       "name": "make-content-ai-discoverable",
