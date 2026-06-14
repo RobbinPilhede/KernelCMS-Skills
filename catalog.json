@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 64,
+  "count": 65,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -893,6 +893,23 @@
       "difficulty": "intermediate",
       "path": "skills/quality/internal-linking/SKILL.md",
       "prompt": "You are an information architect building KernelCMS's internal link graph through the access-controlled MCP tools. You write **drafts** only and touch only fields in your scope. **You only link to documents you've verified exist** — never to a guessed slug.\n\n**First, build the inventory.** Read `kernel://schema` for the linkable collections (`posts`, `pages`, `docs`, …) and their `slug` and `richText`/`blocks` fields. Then `<collection>_list` each to build a map of `{ slug, title, topic }`. This is your source of truth for valid link targets.\n\n**Then analyze the graph** for the target document(s):\n1. **Orphans** — a doc no other doc links to. Find 2–3 thematically related docs and add contextual links *to* it from them.\n2. **Dead ends** — a doc that links out to nothing. Add 2–4 relevant outbound links to related docs.\n3. **Relevance** — link only where the destination genuinely helps the reader at that point; no link farms, no forcing.\n4. **Anchor text** — descriptive and keyword-bearing (\"diff-based migrations\"), never \"click here\" / \"this page\" / a bare URL; vary anchors that point to the same target.\n5. **Slug validity** — every `href` resolves to a real slug from the inventory; flag any link to a missing or draft-only target.\n6. **Hub & cluster** — pillar/overview docs link down to their cluster, and cluster docs link back up to the pillar.\n7. **Density** — a few high-value contextual links beat many. Don't over-link the same destination repeatedly in one doc.\n8. **No self-links / no broken anchors** — within the same doc, use section anchors, not the page's own URL.\n\n**Apply** by editing the `richText`/`blocks` body via `<collection>_update`, inserting links inline where the text already mentions the concept (preferred) rather than bolting on a \"Related\" list — though a related-links block is fine if the schema has one. Drafts only.\n\n**Report.** A small before/after link map (which docs now link to which), the orphans you resolved, and any link you couldn't make because the target doesn't exist (with a suggestion to create it).\n\nTarget: «the document(s) or \"the whole `posts` collection\"»."
+    },
+    {
+      "name": "measure-content-and-ai-usage",
+      "title": "Measure content and AI usage",
+      "description": "Track content engagement and — uniquely — how AI answer engines retrieve your content in KernelCMS, then read privacy-first aggregate insights. No third-party tracker, no PII.",
+      "category": "Quality",
+      "tags": [
+        "analytics",
+        "insights",
+        "ai-usage",
+        "ab-testing",
+        "privacy",
+        "observability"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/quality/measure-content-and-ai-usage/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Turn it on\n\n```ts\nexport default defineConfig({\n  analytics: { enabled: true, autoCapture: true }, // autoCapture is opt-in\n})\n```\n\n`autoCapture` makes every semantic/hybrid/graph search emit an `ai_retrieval` event for the documents it returned, and every A/B assignment emit a `variant_impression` — automatically, with zero added latency. That's your \"how AI uses my content\" signal.\n\n### 2. Track your own events\n\n```ts\nawait kernel.track({ type: 'view', collection: 'articles', documentId: id })\nawait kernel.track({ type: 'search', query: 'pricing' })\nawait kernel.track({ type: 'conversion', experiment: 'hero', variant: 'vip', value: 1 })\n```\n\nTypes: `view`, `search`, `ai_retrieval`, `citation`, `variant_impression`, `conversion`, `custom`. Over REST: `POST /api/_analytics/track`. `track` never throws into your code. **Don't put PII in `meta`** — it's stripped, but `meta` is for non-PII dimensions (`source`, `locale`, `placement`) only.\n\n### 3. Read the insights\n\n```ts\nawait kernel.insights({ metric: 'top_content', type: 'view' })           // most-viewed docs\nawait kernel.insights({ metric: 'top_queries' })                          // what people search\nawait kernel.insights({ metric: 'ai_retrieval_leaderboard' })            // what AI retrieves most ★\nawait kernel.insights({ metric: 'variant_performance' })                 // A/B impressions + conversion rate\nawait kernel.insights({ metric: 'activity', from, to })                  // volume over time\n```\n\nOver REST (admin/editor): `GET /api/_admin/insights?metric=ai_retrieval_leaderboard`.\n\n### 4. Act on it\n\n- **`ai_retrieval_leaderboard`** tells you which content your RAG assistant and answer-engine integrations lean on — double down on it, and notice gaps where AI *should* be finding content but isn't.\n- **`variant_performance`** closes the A/B loop (track a `conversion` per goal, read the rate).\n- **`top_queries`** surfaces demand your content doesn't yet answer.\n\n### 5. Trust the privacy model\n\nThere is no user/IP/visitor/email/token column — the event row physically can't hold PII; the authenticated principal is never recorded; `meta` is stripped of PII-ish and unsafe keys. `track` can only ever write the analytics table. Insights are aggregates only, filtered to collections you can read (a hidden collection's counts never leak), with bounded retention. No third-party analytics, nothing to GDPR-audit.\n\nProvide: «what to measure (engagement / AI retrieval / A/B), which collections, and whether to auto-capture AI retrievals»."
     },
     {
       "name": "metadata-and-open-graph",
