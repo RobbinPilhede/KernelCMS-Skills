@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 78,
+  "count": 79,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -528,6 +528,22 @@
       "difficulty": "advanced",
       "path": "skills/content-modeling/relationships-and-joins/SKILL.md",
       "prompt": "You are designing the relationship layer of a KernelCMS model as config-as-code. Use the real relationship primitives only:\n\n**1. Forward relationships** (`type: 'relationship'`, or `'upload'` for files):\n```ts\n{ name: 'author', type: 'relationship', relationTo: 'authors' }          // single\n{ name: 'tags',   type: 'relationship', relationTo: 'tags', hasMany: true } // many\n```\nStored as the target id (or an array of ids). The FK column is **indexed by default** — no manual `index: true` needed for lookups/population.\n\n**2. Polymorphic** — point at several collections; values are stored/returned as `{ relationTo, value }` so the target is explicit:\n```ts\n{ name: 'related', type: 'relationship', relationTo: ['posts', 'pages'], hasMany: true }\n// → [{ relationTo: 'posts', value: 'p_01' }, { relationTo: 'pages', value: 'pg_07' }]\n```\nUse when a field genuinely references different kinds (a comment on a post *or* a page; a \"related content\" picker). Don't reach for it when one collection suffices.\n\n**3. Reverse `join`** — a *virtual* reverse relationship; nothing is stored. It resolves at read time by querying the related collection for rows pointing back, **only when `depth > 0`**:\n```ts\n// on 'authors': list this author's posts (posts.author → this author)\n{ type: 'join', name: 'posts', collection: 'posts', on: 'author', limit: 100 }\n```\nOrder follows the *related* collection's `admin.defaultSort` — set it for deterministic join order. Rows the caller can't read are silently omitted (access-checked). Use a `join` for \"list the children/back-references of X\" instead of duplicating the link on both sides.\n\n**4. `onDelete` — choose deliberately for every forward relationship.** It decides what happens to *this* referring field when its target is deleted. Default (unset) = **dangling reference** (left as-is; `populate` tolerates a missing target). Options:\n- **`setNull`** — clear the reference (or pull the id from a `hasMany` list). Use when the referrer should *survive* without the target. (post → author: deleting an author shouldn't delete posts.)\n- **`cascade`** — delete the referring document too. Use when the referrer *cannot exist* without the target. (variant → product, comment → post: an orphan is meaningless.) Cascades run through the normal delete pipeline (access + hooks), with cycle protection — never a raw row drop.\n- **`restrict`** — block the target's deletion while any referrer exists. Use to protect integrity. (don't let a category be deleted while posts reference it — force reassignment first.)\n\n**The decision rule:** *\"If the target vanishes, should this document die (`cascade`), lose the link (`setNull`), or be protected (`restrict`)?\"* Answer per field — the right action differs by direction.\n\n**5. Population depth.** Relationships return ids; pass `depth` to expand (each level decrements). Joins populate only at `depth > 0`.\n\nOutput the relationship fields with an explicit `onDelete` (or a stated reason for leaving it dangling) on each, plus where you used a `join` instead of a stored reverse link, and any polymorphic field with its justification."
+    },
+    {
+      "name": "reuse-content-with-snippets",
+      "title": "Reuse content with snippets",
+      "description": "Define a piece of content once in KernelCMS (a CTA, a promo banner, legal text) and reference it from many documents with a snippet field — it transcludes the fragment's live content on read, so editing it once updates everywhere, access-checked.",
+      "category": "Content modeling",
+      "tags": [
+        "snippets",
+        "reusable",
+        "transclusion",
+        "dry",
+        "content-modeling"
+      ],
+      "difficulty": "starter",
+      "path": "skills/content-modeling/reuse-content-with-snippets/SKILL.md",
+      "prompt": ""
     },
     {
       "name": "schema-from-brief",
