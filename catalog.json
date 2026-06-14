@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 68,
+  "count": 69,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -1058,6 +1058,22 @@
       "difficulty": "starter",
       "path": "skills/retrieval-ai/add-schema-org-jsonld/SKILL.md",
       "prompt": "This skill is operational — follow the runbook.\n\n### 1. Map collections to schema.org types\n\n```ts\nexport default defineConfig({\n  // …\n  structuredData: {\n    baseUrl: 'https://acme.com',\n    collections: [\n      { slug: 'articles', type: 'Article', urlPattern: '/blog/:slug' },\n      { slug: 'products', type: 'Product', urlPattern: '/shop/:slug' },\n      { slug: 'authors', type: 'Person' },\n    ],\n  },\n})\n```\n\nWith no explicit `mapping`, **smart defaults** do the work: your title → `name`/`headline`, rich-text body → `articleBody` (+ a `description`), publish/updated dates → `datePublished`/`dateModified`, an author relationship → `author`, an image field → `image`. Override any property:\n\n```ts\n{ slug: 'products', type: 'Product', mapping: { name: 'product_name', description: 'tagline', image: 'hero' } }\n```\n\n### 2. Embed it in your pages\n\n```ts\nconst script = await kernel.jsonLdScript({ collection: 'articles', id })\n// → '<script type=\"application/ld+json\">{ \"@context\": \"https://schema.org\", \"@type\": \"Article\", … }</script>'\n```\n\nDrop `script` into your page `<head>`. (It's HTML-escaped, so content can't break out of the tag.) Or fetch the raw object: `kernel.jsonLd({ collection, id })`. Over REST: `GET /api/articles/ID/jsonld` returns `application/ld+json`.\n\n### 3. Validate\n\nPaste a rendered page (or the `/jsonld` output) into Google's [Rich Results Test](https://search.google.com/test/rich-results) or the [schema.org validator](https://validator.schema.org/). Fix field mappings until the type validates with the properties you want surfaced.\n\n### 4. Trust the boundaries\n\nGeneration runs through the same access-checked read as any public request: a **draft, private, or read-denied** document or field is never emitted — anonymous callers get only published, publicly-readable content. The `<script>` embedding is XSS-safe (content can't escape the tag), and `@id`/`image` URLs are injection-safe.\n\n### 5. Pair it with the rest of the discoverability stack\n\nStructured data completes the trio with [semantic search](#/prompts) (your content as a RAG knowledge base) and [llms.txt / GEO](#/prompts) (citable by AI answer engines). Together they make your content fully machine-understandable for both classic search and the AI-answer era.\n\nProvide: «the collections to expose, the schema.org type for each, and any non-default field mappings»."
+    },
+    {
+      "name": "find-related-and-duplicate-content",
+      "title": "Find related and duplicate content",
+      "description": "Use KernelCMS content intelligence to power \"related content\" recommendations and to find near-duplicate / redundant content for a quality cleanup — straight from the embeddings you index for search, access-checked.",
+      "category": "Retrieval & AI",
+      "tags": [
+        "related-content",
+        "duplicates",
+        "embeddings",
+        "content-quality",
+        "recommendations"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/retrieval-ai/find-related-and-duplicate-content/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. \"More like this\"\n\n```ts\nconst { docs } = await kernel.relatedContent({ collection: 'articles', id, limit: 5 })\n```\n\nReturns the documents most semantically similar to the seed (re-embedded from its current content, excluding itself), access-checked. Drop them into a \"Related\" rail or internal-linking suggestions. Over REST: `GET /api/articles/ID/related?limit=5`.\n\n### 2. Find near-duplicates\n\n```ts\nconst { pairs } = await kernel.findDuplicates({ collection: 'articles', threshold: 0.9 })\n// pairs: [{ a, b, score }, …] — documents whose embeddings are near-identical\n```\n\nTune `threshold` (cosine, default 0.9): higher = only very close matches. Use it to:\n- catch accidental re-publishes / copy-paste duplicates,\n- find overlapping pages to consolidate (better for SEO and for AI retrieval — fewer redundant chunks),\n- spot stale content that duplicates newer pages.\n\nOver REST (admin/editor): `GET /api/_admin/duplicates?collection=articles&threshold=0.92`.\n\n### 3. Act on the pairs\n\nFor each `{ a, b, score }`: open both, decide keep/merge/redirect. High-score pairs (0.97+) are usually true duplicates; mid-range (0.9–0.95) are overlapping topics worth a human look. Pair it with [the time-machine](#/prompts) to see which came first, and [releases](#/prompts) to publish the consolidation atomically.\n\n### 4. Trust the boundaries\n\nEvery result is access-checked: a related document you can't read is dropped, and a duplicate pair is returned **only** when you can read both documents — so dedup never reveals the id or existence of hidden content. The scan is bounded (it's an admin operation), the threshold is clamped to `[0,1]`, and the embedding provider's key/text never leaks.\n\nProvide: «whether you want related-content rails, a duplicate cleanup, or both — and the collection(s) and similarity threshold»."
     },
     {
       "name": "ground-an-agent-with-graphrag",
