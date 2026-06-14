@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 75,
+  "count": 76,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -335,6 +335,22 @@
       "difficulty": "intermediate",
       "path": "skills/content-modeling/design-a-block-library/SKILL.md",
       "prompt": "You are designing a reusable block library for a KernelCMS `blocks` page-builder field. Output a `blocks` field definition (the `BlockDef[]`) using only real field types: `text`, `textarea`, `slug`, `number`, `boolean`, `select`, `richText`, `group`, `array`, `relationship`, `upload`, `point`. Each block is `{ slug, labels?, admin?: { group, description, thumbnail }, fields: [...] }`. Blocks are stored as `{ blockType, ...fields }`.\n\n**Design principles — this is a design system, not a dumping ground:**\n1. **Tight set.** Ship the 6–10 sections a brand actually uses. Each block you add is a thing an editor/agent can place, so restraint *is* the on-brand guarantee — only fields you define can be set.\n2. **One job per block.** A `hero` is one promise + one CTA. A `feature_grid` is N uniform feature cards. Don't build a god-block with 20 optional fields; build distinct, single-purpose blocks.\n3. **Constrain repetition.** Repeated items inside a block are an `array` with `minRows`/`maxRows` (a feature grid of 2–6, not unbounded). This is where layout quality is enforced.\n4. **Curate, don't free-form.** Prefer a `select` of variants (`align: left|center`, `theme: light|dark`, `width: contained|full`) over arbitrary inputs. Bound choices keep pages consistent.\n5. **Real links & media.** CTAs are `{ label, href }` (or a `relationship` to a `pages` collection for internal links). Images are `upload` → media. Never a bare URL where a typed link belongs.\n6. **Library affordances.** Give every block `admin.group` (so the section picker is organized) and a one-line `admin.description` (the library card copy). A `thumbnail` URL helps editors choose.\n\n**A strong default marketing set:** `hero`, `logo_strip`, `feature_grid`, `feature_split` (image + copy, alternating), `steps`, `testimonial`/`quote`, `stat_row`, `pricing`, `faq`, `cta`, `rich_text` (an escape hatch for prose). Adapt to the brief — drop what isn't needed.\n\nOutput the `blocks` field, then a short note on which blocks you included/excluded and why, and the variant `select`s you used to keep composition on-brand. Note how an agent composing pages discovers these via `kernel://schema` and can only use these exact types/fields."
+    },
+    {
+      "name": "encrypt-sensitive-fields",
+      "title": "Encrypt sensitive fields",
+      "description": "Encrypt PII or secrets at rest in KernelCMS by marking a field `encrypted: true` — transparent AES-256-GCM (encrypted on write, decrypted on read) with the plaintext kept out of versions, webhooks, search, and SEO surfaces.",
+      "category": "Content modeling",
+      "tags": [
+        "encryption",
+        "security",
+        "pii",
+        "compliance",
+        "at-rest"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/encrypt-sensitive-fields/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Provide a key and mark the fields\n\n```ts\nexport default defineConfig({\n  encryption: { key: process.env.FIELD_ENCRYPTION_KEY }, // ≥16 random chars, from env\n  collections: [\n    {\n      slug: 'people',\n      fields: [\n        { name: 'name', type: 'text' },\n        { name: 'ssn', type: 'text', encrypted: true },\n        { name: 'notes', type: 'json', encrypted: true },\n      ],\n    },\n  ],\n})\n```\n\nThe value is AES-256-GCM encrypted on write and decrypted on read — the column stores an\n`enc:1:<iv>:<tag>:<ciphertext>` envelope with a fresh IV per value (the same plaintext encrypts\ndifferently each time). Works for any storage field type (the plaintext is JSON-serialized\nfirst).\n\n### 2. Know what you give up\n\nCiphertext is opaque and non-deterministic, so an encrypted field **cannot** be:\n\n- `unique` or `index`ed,\n- filtered or sorted on (`where: { ssn: ... }` is rejected),\n- full-text searched (`search.fields`),\n- `localized` or `personalized`,\n- a relationship, or nested inside a group/array/blocks.\n\nEach of these is rejected at config load — so you find out immediately, not in production. Keep\na plaintext lookup field (e.g. a hashed or last-4 value) alongside if you need to query.\n\n### 3. Manage the key like a database credential\n\n- Read `encryption.key` from an environment secret; never hardcode or commit it.\n- **Rotating or losing the key makes existing ciphertext unreadable** (a hard `DecryptionError`\n  on read). There is no built-in re-encryption — plan key management before you store data.\n- Use a long, random key. The 256-bit AES key is derived from it via SHA-256, so it should be\n  high-entropy, not a human passphrase.\n\n### 4. Trust the boundaries\n\n- **Authenticated at rest.** AES-256-GCM with a per-value IV; tampering or a wrong key is a\n  detectable `DecryptionError`, never silent garbage. The storage column never holds plaintext.\n- **No plaintext leaks out.** Version snapshots store ciphertext (decrypted only on an\n  access-checked version read); webhook payloads redact encrypted fields; JSON-LD / structured\n  data / discoverability (llms.txt) never publish an encrypted field. So an encrypted field\n  can't slip into history, an external receiver, or an anonymous SEO/AI surface.\n- **Field access still applies.** Add `access.read` to an encrypted field and a denied reader\n  gets null — never the ciphertext, never the plaintext. Encryption protects at rest;\n  field-access controls who sees it.\n- **Server-only key.** The key (and the derived AES key) is never logged, returned, or\n  serialized.\n\nProvide: «the collections + fields holding sensitive data, where the encryption key will live\n(env/secret manager), and any plaintext lookup field you need to keep for querying»."
     },
     {
       "name": "localization-setup",
