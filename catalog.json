@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 70,
+  "count": 71,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -255,6 +255,22 @@
       "difficulty": "intermediate",
       "path": "skills/content-modeling/auto-translate-content/SKILL.md",
       "prompt": "This skill is operational — follow the runbook. (Needs `localization` configured.)\n\n### 1. Wire a translation provider\n\nSupply a `translate` function — any provider works (KernelCMS has no hard dependency):\n\n```ts\nexport default defineConfig({\n  localization: { locales: ['en', 'es', 'fr', 'de'], defaultLocale: 'en' },\n  translation: {\n    async translate({ texts, from, to }) {\n      const res = await fetch('https://api-free.deepl.com/v2/translate', {\n        method: 'POST',\n        headers: { Authorization: `DeepL-Auth-Key ${process.env.DEEPL_KEY}`, 'content-type': 'application/json' },\n        body: JSON.stringify({ text: texts, source_lang: from.toUpperCase(), target_lang: to.toUpperCase() }),\n      })\n      const json = await res.json()\n      return json.translations.map((t: { text: string }) => t.text)\n    },\n  },\n})\n```\n\n(OpenAI/Google/a local model work the same way — map N input strings to N output strings.)\n\n### 2. Translate one document\n\n```ts\nawait kernel.translateDocument({ collection: 'articles', id, from: 'en', to: 'es' })\n```\n\nIt reads the English values of the localized fields, translates them, and writes them into Spanish — **merging** (other locales untouched), filling only the **missing** values by default. Pass `overwrite: true` to redo existing ones, or `fields: ['title', 'summary']` to limit scope. Over REST: `POST /api/articles/ID/translate` with `{ \"from\": \"en\", \"to\": \"es\" }`.\n\n### 3. Bulk-fill a whole collection\n\n```ts\nconst { translated, skipped } = await kernel.translateMissing({ collection: 'articles', to: 'fr', limit: 100 })\n```\n\nFinds every document missing the `fr` locale (via the translation-status data) and fills it. Over REST (admin/editor): `POST /api/_admin/translate-missing`.\n\n### 4. Keep humans in the loop\n\nTranslation is a normal write through the access pipeline, so the result lands as content you can review — pair it with strict localization (publishing is blocked until required fields are translated) and the translation-status dashboard to see what's complete, then have an editor (or an agent, draft-only) review machine translations before they go live.\n\n### 5. Trust the boundaries\n\nThe caller must be able to update the document; strict-mode per-locale required validation still applies; the agent draft-only brake still holds (a translation never auto-publishes). The provider's API key and the source/translated text never leak (a failure surfaces a generic message), a provider error never leaves a document half-translated, unknown locales are rejected, and a field you can't read is never sent to the provider.\n\nProvide: «your translation provider, the locales to fill, and whether to translate one document, a collection, or only missing values»."
+    },
+    {
+      "name": "create-content-templates",
+      "title": "Create content templates",
+      "description": "Define reusable document skeletons in KernelCMS so editors start new content from a pre-filled template (default fields + a blocks layout) instead of a blank page — created through the normal access-checked pipeline.",
+      "category": "Content modeling",
+      "tags": [
+        "templates",
+        "page-builder",
+        "blocks",
+        "productivity",
+        "scaffolding"
+      ],
+      "difficulty": "starter",
+      "path": "skills/content-modeling/create-content-templates/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Define the skeletons\n\n```ts\nexport default defineConfig({\n  templates: [\n    {\n      slug: 'landing',\n      collection: 'pages',\n      name: 'Landing page',\n      description: 'Hero + features + CTA',\n      data: {\n        title: 'Untitled landing page',\n        layout: [\n          { blockType: 'hero', heading: 'Your headline', subheading: 'Your subhead' },\n          { blockType: 'cta', label: 'Get started', href: '/signup' },\n        ],\n      },\n    },\n    { slug: 'article', collection: 'posts', name: 'Standard article', data: { title: 'Untitled', body: '' } },\n  ],\n})\n```\n\n`data` is the document's default field values — anything a normal create accepts, including a full blocks `layout`. It's deep-frozen, so it stays a clean shared skeleton.\n\n### 2. List and instantiate\n\n```ts\nconst templates = await kernel.listTemplates({ collection: 'pages' })  // metadata only\nconst page = await kernel.createFromTemplate({ template: 'landing' })  // pre-filled draft\nconst custom = await kernel.createFromTemplate({ template: 'landing', data: { title: 'Spring launch' } })\n```\n\nYour `data` overrides the template defaults (caller wins, nested objects merge). Over REST: `GET /api/_admin/templates`, `POST /api/pages/from-template` with `{ \"template\": \"landing\", \"data\": { ... } }`.\n\n### 3. Wire a \"New from template\" button\n\nIn your admin or app, fetch `listTemplates({ collection })` to populate a picker, then POST to `from-template` on selection. The result is a normal draft document the editor opens and finishes.\n\n### 4. Trust the boundaries\n\nCreating from a template is a **normal create** — the editor must have create access, validation runs, out-of-scope fields are stripped for a scoped agent, and the agent draft-only brake holds (a template that sets `_status: 'published'` never publishes for an agent). The caller's override `data` is prototype-pollution-guarded, the template config can't be mutated at runtime, and a template only ever creates into its configured collection (the route is authoritative).\n\nProvide: «the document types editors build repeatedly, and the default fields / blocks layout each should start with»."
     },
     {
       "name": "design-a-block-library",
