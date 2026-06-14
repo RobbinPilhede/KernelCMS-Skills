@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 79,
+  "count": 80,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -609,6 +609,22 @@
       "difficulty": "intermediate",
       "path": "skills/content-modeling/ship-a-content-release/SKILL.md",
       "prompt": "This skill is operational — follow the runbook. (Enable it once with `releases: true` in your config.)\n\n### 1. Create a release and stage your drafts\n\n```ts\nconst release = await kernel.createRelease({ name: 'Spring launch' })\nawait kernel.addToRelease({ release: release.id, collection: 'pages', id: landingId })\nawait kernel.addToRelease({ release: release.id, collection: 'articles', id: postId })\nawait kernel.addToRelease({ release: release.id, collection: 'globals', id: pricingId })\n```\n\nMembers are draft documents. You can only add docs you can read, and only to an `open` release. Over REST: `POST /api/_admin/releases` then `POST /api/_admin/releases/:id/items`.\n\n### 2. Preview the whole bundle\n\n```ts\nconst { items } = await kernel.previewRelease({ release: release.id })\n// each item is the member in its draft state — review the launch as it WILL look\n```\n\n### 3. Publish it — atomically\n\n```ts\nconst result = await kernel.publishRelease({ release: release.id })\n// { status: 'published', published: [...], failed: [] }\n```\n\nBefore anything goes live, the release **dry-runs the publish gate for every member**: per-document publish access, the agent draft-only brake, and your blocking content-CI evals against the current drafts. If *any* member would fail, **none** are published — you get `failed` with the reasons and the release stays `open`. A launch never ships half-broken. Over REST: `POST /api/_admin/releases/:id/publish`.\n\n### 4. Or schedule it\n\n```ts\nawait kernel.scheduleRelease({ release: release.id, at: '2026-07-01T09:00:00Z' })\n```\n\nA cron drain publishes it when due — add `kernel.processScheduledReleases()` next to `processScheduledPublishes()` in your `kernel jobs:run` (or scheduled task). Publishability is gate-checked at schedule time, and the eval gate is re-checked on the drain.\n\n### 5. Trust the boundaries\n\nPublishing a release uses the **exact same per-document publish gate** as a direct publish — you can only publish a release whose every member you could publish yourself, an agent can never publish a release, and you can't pull a document you can't read into one. The all-or-nothing pre-flight prevents a partial go-live (a mid-publish infrastructure fault marks the release `failed` and reports exactly which members went live).\n\nProvide: «the launch/campaign, the documents that must ship together, and whether to publish now or schedule it»."
+    },
+    {
+      "name": "work-on-a-content-branch",
+      "title": "Work on a content branch",
+      "description": "Stage a set of content edits on a named branch in KernelCMS without touching the live documents — preview and diff the branch, then merge it (each change replayed through the access-checked update) or discard it. Git-for-content.",
+      "category": "Content modeling",
+      "tags": [
+        "branches",
+        "staging",
+        "git-for-content",
+        "preview",
+        "review"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/work-on-a-content-branch/SKILL.md",
+      "prompt": ""
     },
     {
       "name": "from-contentful",
