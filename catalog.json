@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 80,
+  "count": 81,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -220,6 +220,22 @@
       ],
       "difficulty": "intermediate",
       "path": "skills/agent-workflows/set-up-saved-search-alerts/SKILL.md",
+      "prompt": ""
+    },
+    {
+      "name": "sync-content-between-environments",
+      "title": "Sync content between environments",
+      "description": "Promote content from one KernelCMS environment to another (staging → prod, or keep two instances in sync) by exporting a portable, id-preserving bundle and applying it with a dry-run diff — every change access-checked, validated, and publish-gated.",
+      "category": "Agent workflows",
+      "tags": [
+        "federation",
+        "sync",
+        "environments",
+        "migration",
+        "deployment"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/sync-content-between-environments/SKILL.md",
       "prompt": ""
     },
     {
