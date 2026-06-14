@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 77,
+  "count": 78,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -205,6 +205,22 @@
       "difficulty": "starter",
       "path": "skills/agent-workflows/set-up-an-mcp-project-from-scratch/SKILL.md",
       "prompt": "### 1. Scaffold\n\n```bash\nmkdir my-cms && cd my-cms\nnpx kernel init            # writes kernel.config.ts (SQLite + a users + posts collection)\nnpm install kernelcms\n```\n\n`kernel init` gives you a zero-config starter: local SQLite, an auth `users` collection, and a public `posts` collection.\n\n### 2. Model your content\n\nEdit `kernel.config.ts`. Add the fields and a page-builder collection you want the agent to compose. A minimal `pages` collection with a `blocks` field:\n\n```ts\nimport { defineConfig } from 'kernelcms'\nimport { sqliteAdapter } from 'kernelcms/sqlite'\n\nexport default defineConfig({\n  secret: process.env.KERNEL_SECRET ?? 'dev-only-secret',\n  db: sqliteAdapter({ url: 'file:./content.db' }),\n  collections: [\n    { slug: 'users', auth: true, fields: [{ name: 'name', type: 'text' }] },\n    {\n      slug: 'pages',\n      access: { read: () => true },\n      versions: { drafts: true }, // drafts + version history (drafts implies versioning)\n      fields: [\n        { name: 'title', type: 'text', required: true },\n        { name: 'slug', type: 'text' },\n        {\n          name: 'layout',\n          type: 'blocks',\n          blocks: [\n            { slug: 'hero', fields: [\n              { name: 'heading', type: 'text' }, { name: 'sub', type: 'text' } ] },\n            { slug: 'feature_grid', fields: [\n              { name: 'columns', type: 'number' },\n              { name: 'items', type: 'array', fields: [\n                { name: 'title', type: 'text' }, { name: 'body', type: 'text' } ] } ] },\n            { slug: 'cta', fields: [\n              { name: 'label', type: 'text' }, { name: 'href', type: 'text' } ] },\n          ],\n        },\n      ],\n    },\n  ],\n})\n```\n\nRun it and confirm it boots:\n\n```bash\nnpx kernel dev            # migrates, then serves the REST API + admin\n```\n\nCreate an admin user in the admin UI (you'll publish from here later). Stop the server when you've confirmed it runs.\n\n### 3. Add a scoped agent\n\nAppend an `agents` array. Least privilege: only the fields the agent needs, never the `admin` role, token from env.\n\n```ts\n  agents: [\n    {\n      id: 'page-bot',\n      token: process.env.PAGE_BOT_TOKEN!,        // from env — never a literal\n      roles: ['editor'],                         // never 'admin' (rejected at startup)\n      fieldScope: { allow: ['title', 'slug', 'layout'] }, // deny-by-default\n    },\n  ],\n```\n\nGenerate a token into `.env` (gitignored):\n\n```bash\necho \"PAGE_BOT_TOKEN=$(openssl rand -hex 32)\" >> .env\n```\n\n### 4. Serve over MCP and connect a client\n\n```bash\nnpx kernel mcp --agent page-bot     # stdio; --agent optional if there's only one\n```\n\nRegister it in the client. **Claude Desktop** (`claude_desktop_config.json`) or **Cursor** (`.cursor/mcp.json`) — same shape:\n\n```json\n{\n  \"mcpServers\": {\n    \"kernelcms\": {\n      \"command\": \"npx\",\n      \"args\": [\"kernel\", \"mcp\", \"--agent\", \"page-bot\"],\n      \"env\": { \"PAGE_BOT_TOKEN\": \"paste-the-token-here\" }\n    }\n  }\n}\n```\n\nRestart the client. You should see the `kernelcms` tools (`pages_list`, `pages_create`, …) and the `kernel://schema` resource.\n\n### 5. Compose the first page (run this prompt in the client)\n\nRead the `kernel://schema` resource and find the `pages` collection and its `layout` blocks field — list the available block types and their fields. Then compose a first page from this brief: «your brief». Build the `layout` array as an ordered narrative using only real block types, fill each block's fields, and create it with `pages_create` (title + slug + layout). It will be a draft — you can't publish. When done, summarize the section order and tell me it's ready to review.\n\n### 6. Publish (human)\n\nOpen the new page in the admin, check it in live preview, fill any field outside the agent's scope, and publish. Done — your first agent-composed page is live, on your decision."
+    },
+    {
+      "name": "set-up-saved-search-alerts",
+      "title": "Set up saved-search alerts",
+      "description": "Let editors (or agents) subscribe to a query in KernelCMS and get a webhook when matching content changes — access-scoped so an alert never fires for content the subscriber can't read.",
+      "category": "Agent workflows",
+      "tags": [
+        "subscriptions",
+        "alerts",
+        "webhooks",
+        "realtime",
+        "notifications"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/agent-workflows/set-up-saved-search-alerts/SKILL.md",
+      "prompt": ""
     },
     {
       "name": "translate-content",
