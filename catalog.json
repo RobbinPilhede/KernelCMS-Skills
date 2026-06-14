@@ -1,6 +1,6 @@
 {
   "generatedFrom": "skills/**/SKILL.md",
-  "count": 69,
+  "count": 70,
   "categories": [
     "Agent workflows",
     "Content modeling",
@@ -221,6 +221,23 @@
       "difficulty": "starter",
       "path": "skills/content-modeling/add-seo-fields/SKILL.md",
       "prompt": "You are adding SEO fields to a KernelCMS collection as config-as-code. There are two correct approaches — choose based on the brief and say which:\n\n**A. The first-party plugin (preferred for the common case).** The first-party SEO plugin (`seoPlugin`, from `kernelcms/plugin-seo`) is an ordinary config-transformer plugin — no privileged access. It adds `meta_title` (text, `maxLength: 70`) and `meta_description` (textarea, `maxLength: 160` by default) under an \"SEO\" admin tab on the listed collections, and a `beforeChange` hook that **auto-fills** each from a source field when left blank:\n```ts\nimport { seoPlugin } from 'kernelcms/plugin-seo'\n// …\nplugins: [\n  seoPlugin({\n    collections: ['posts', 'pages'],\n    generateTitleFrom: 'title',        // seeds meta_title when blank\n    generateDescriptionFrom: 'excerpt', // seeds meta_description when blank\n    descriptionMaxLength: 160,\n  }),\n]\n```\nUse this when you want consistent SEO across several collections with auto-generation and minimal config. It won't double-add fields you already declared.\n\n**B. An inline `group` (or `tab`)** when you need fields the plugin doesn't ship — an OG image, a canonical URL, a `noindex` toggle, per-locale meta. Model it explicitly:\n```ts\n{ name: 'seo', type: 'group', admin: { description: 'Search & social metadata' }, fields: [\n  { name: 'title', type: 'text', maxLength: 70,\n    admin: { description: 'Search/social title (≤70 chars).' } },\n  { name: 'description', type: 'textarea', maxLength: 160,\n    admin: { description: 'Shown under the title in results (~160).' } },\n  { name: 'og_image', type: 'upload', relationTo: 'media',\n    admin: { description: 'Open Graph / social card image (1200×630).' } },\n  { name: 'canonical_url', type: 'text' },\n  { name: 'no_index', type: 'boolean', defaultValue: false },\n] }\n```\nA `group` namespaces the data (`seo.title`, `seo.og_image`) and renders as one section — use `admin.tab: 'SEO'` on each field instead if you'd rather they live in a dedicated editor tab alongside the plugin's.\n\n**Length limits matter.** `meta_title` ≤ ~70 chars, `meta_description` ≤ ~160 — search engines truncate beyond that. Enforce with `maxLength`.\n\n**Localization.** If the site is multi-locale, mark the SEO text fields `localized: true` so each language gets its own meta. (Requires `config.localization`.)\n\n**Don't:** put SEO behind field-level access that hides it from editors, or auto-fill from a richText field (it's structured, not a string — the plugin only seeds from string sources). Output the edit and say which approach and why."
+    },
+    {
+      "name": "auto-expire-and-archive-content",
+      "title": "Auto-expire and archive content",
+      "description": "Give KernelCMS content an expiry — automatically unpublish, archive, or delete it when a date passes, via a trusted cron drain. For embargoes, time-limited campaigns, retention, and stale-content cleanup.",
+      "category": "Content modeling",
+      "tags": [
+        "lifecycle",
+        "expiry",
+        "archive",
+        "retention",
+        "scheduling",
+        "embargo"
+      ],
+      "difficulty": "intermediate",
+      "path": "skills/content-modeling/auto-expire-and-archive-content/SKILL.md",
+      "prompt": "This skill is operational — follow the runbook.\n\n### 1. Declare an expiry date field\n\nYou own the schema — add a `date` field to the collection that should expire:\n\n```ts\n{\n  slug: 'promos',\n  versions: { drafts: true },\n  fields: [\n    { name: 'title', type: 'text' },\n    { name: 'expire_at', type: 'date' }, // editors set when this promo ends\n  ],\n}\n```\n\n### 2. Configure the lifecycle policy\n\n```ts\nexport default defineConfig({\n  lifecycle: {\n    collections: [\n      { slug: 'promos', expireField: 'expire_at', onExpire: 'unpublish' }, // → back to draft\n      { slug: 'notices', expireField: 'expire_at', onExpire: 'archive' },   // → draft + _archived_at\n      { slug: 'temp_logs', expireField: 'expire_at', onExpire: 'delete' },  // → removed\n    ],\n  },\n})\n```\n\n- **`unpublish`** — the content goes back to draft (recoverable).\n- **`archive`** — draft **plus** a server-managed `_archived_at` timestamp, so it's hidden from public reads and distinguishable from a normal draft (great for \"expired but keep the record\").\n- **`delete`** — the document is removed (retention/compliance).\n\n### 3. Run the drain on a cron\n\nThe expiry drain is a trusted, operator-only operation — there's no HTTP trigger. Run it on a schedule:\n\n```bash\n# drains scheduled publishes, scheduled releases, AND content lifecycle:\nnpx kernel jobs:run\n# or just the lifecycle:\nnpx kernel lifecycle:run\n```\n\n(Or call `await kernel.processContentLifecycle()` from your own scheduled task.) Every retirement is audited as `content.expire`.\n\n### 4. Trust the boundaries\n\nThe drain runs with full authority *because* it's cron/operator-only, not exposed to the web. The `_archived_at` marker is server-managed and **client-immutable** — a normal user can never fake-archive or un-archive content through the API. Editors can only set `expire_at` on content they can already write, and the drain only ever touches the collections you list.\n\nProvide: «which collections expire, the date field, and what should happen when they do (unpublish / archive / delete)»."
     },
     {
       "name": "auto-translate-content",
